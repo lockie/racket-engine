@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require ffi/unsafe sdl)
+(require racket/function ffi/unsafe sdl)
 
 
 (define (event-type event)
@@ -72,9 +72,6 @@
         (set! texture (SDL_CreateTextureFromSurface renderer image))
         (SDL_FreeSurface image))
 
-    (define (update dt)
-        #t)
-
     (define (draw renderer)
         (SDL_RenderCopy renderer texture rect rect))
 
@@ -84,13 +81,10 @@
 
     (lambda (msg)
         (case msg
-            [(conf) (lambda (table) #t)]
             [(load) load]
-            [(update) update]
             [(draw) draw]
-            [(event) (lambda (sdl-event) #t)]
             [(quit) quit]
-            [else (error 'example-game "unknown message" msg)])))
+            [else identity])))
 
 (define (run-game)
     (define game (make-example-game))
