@@ -30,36 +30,40 @@
     (define renderer (SDL_CreateRenderer window -1 0))
     (SDL_SetRenderDrawColor renderer 0 0 0 255)
 
-    (unless (andmap (lambda (c) ((c 'load) renderer)) components)
-        (error 'engine "loading failed"))
-
     (define tick-period (/ 1.0 (SDL_GetPerformanceFrequency)))
     (define event (cast (malloc _SDL_Event) _pointer _SDL_Event*))
 
-    (let game-loop ([last-tick (SDL_GetPerformanceCounter)])
-        (when (let event-loop ()
-                  (cond
-                      [(zero? (SDL_PollEvent event)) #t]
-                      [(and (eq? (event-type event) 'SDL_QUIT)
-                            (andmap (lambda (c) ((c 'quit))) components))
-                       #f]
-                      [(not (andmap (lambda (c) ((c 'event) event)) components))
-                       #f]
-                      [else (event-loop)]))
-            (define current-tick (SDL_GetPerformanceCounter))
-            (for-each
-             (lambda (c) ((c 'update)
-                          (* tick-period (- current-tick last-tick))))
-             components)
-            (SDL_RenderClear renderer)
-            (for-each (lambda (c) ((c 'draw) renderer)) components)
-            (SDL_RenderPresent renderer)
-            (SDL_Delay 1)
-            (game-loop current-tick)))
+    (define (cleanup)
+        (SDL_DestroyRenderer renderer)
+        (SDL_DestroyWindow window)
+        (SDL_Quit))
 
-    (SDL_DestroyRenderer renderer)
-    (SDL_DestroyWindow window)
-    (SDL_Quit))
+    (with-handlers ([exn:fail? (lambda (e) (cleanup) (raise e))])
+        (unless (andmap (lambda (c) ((c 'load) renderer)) components)
+            (error 'engine "loading failed"))
+
+        (let game-loop ([last-tick (SDL_GetPerformanceCounter)])
+            (when (let event-loop ()
+                      (cond
+                          [(zero? (SDL_PollEvent event)) #t]
+                          [(and (eq? (event-type event) 'SDL_QUIT)
+                                (andmap (lambda (c) ((c 'quit))) components))
+                           #f]
+                          [(not
+                            (andmap (lambda (c) ((c 'event) event)) components))
+                           #f]
+                          [else (event-loop)]))
+                (define current-tick (SDL_GetPerformanceCounter))
+                (for-each
+                 (lambda (c) ((c 'update)
+                              (* tick-period (- current-tick last-tick))))
+                 components)
+                (SDL_RenderClear renderer)
+                (for-each (lambda (c) ((c 'draw) renderer)) components)
+                (SDL_RenderPresent renderer)
+                (SDL_Delay 1)
+                (game-loop current-tick))))
+    (cleanup))
 
 
 ;; NOTE : this is not the part of engine
