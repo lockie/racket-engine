@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/function ffi/unsafe sdl)
+(require racket/function ffi/unsafe sdl "sdl-image.rkt" "tiled.rkt")
 
 
 (define (event-type event)
@@ -19,6 +19,7 @@
 
     (SDL_SetMainReady)
     (SDL_Init (bitwise-ior SDL_INIT_VIDEO))
+    (IMG_Init 'IMG_INIT_PNG)
 
     (define window
         (SDL_CreateWindow
@@ -36,6 +37,7 @@
     (define (cleanup)
         (SDL_DestroyRenderer renderer)
         (SDL_DestroyWindow window)
+        (IMG_Quit)
         (SDL_Quit))
 
     (with-handlers ([exn:fail? (lambda (e) (cleanup) (raise e))])
@@ -88,7 +90,7 @@
             [(load) load]
             [(draw) draw]
             [(quit) quit]
-            [else identity])))
+            [else (const #t)])))
 
 (define (run-game)
     (define game (make-example-game))
