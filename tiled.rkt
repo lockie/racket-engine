@@ -1,7 +1,7 @@
 #lang racket/base
 
 ;; NOTE : additionally requires sxml, csv-reading
-(require racket/list racket/function racket/path sxml csv-reading sdl "sdl-image.rkt" "tiled-layer.rkt")
+(require racket/list racket/function racket/sequence racket/path sxml csv-reading sdl "sdl-image.rkt" "tiled-layer.rkt")
 
 (provide
  (all-defined-out))
@@ -75,8 +75,8 @@
 (define (make-tiled-map-renderer tiled-map)
     (define window-width 0)
     (define window-height 0)
-    (define tile-width #f)
-    (define tile-height #f)
+    (define tile-width 0)
+    (define tile-height 0)
     (define transform-x 0)
     (define transform-y 0)
     (define pos-x (const 0))
@@ -99,7 +99,16 @@
                        (lambda (row col) (* col tile-width)))
                  (set! pos-y
                        (lambda (row col) (* row tile-height))))]
-            ;; [(isometric)] ;; TODO
+            [(isometric)
+             (begin
+                 (set! pos-x
+                     (lambda (row col)
+                         (* (- col row)
+                            (/ tile-width 2))))
+                 (set! pos-y
+                     (lambda (row col)
+                         (* (+ row col)
+                            (/ tile-height 2)))))]
             [(staggered)
              (begin
                  (set! pos-x
@@ -177,8 +186,11 @@
         (set! transform-y ty))
 
     (define (quit)
-        ;; TODO : free resources
-        #t)
+        (sequence-for-each
+         (lambda (tile)
+             (define texture (car tile))
+             (SDL_DestroyTexture texture))
+         tileset-map))
 
     (lambda (msg)
         (case msg
