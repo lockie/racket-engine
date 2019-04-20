@@ -3,8 +3,31 @@
 (require racket/function ffi/unsafe sdl "sdl-image.rkt" "tiled.rkt")
 
 
+;; racket-sdl fixups
+
+(define-cstruct _SDL_KeyboardEvent
+    ([type _uint32]
+     [timestamp _uint32]
+     [windowID _uint32]
+     [state _uint8]
+     [repeat _uint8]
+     [padding2 _uint8]
+     [padding3 _uint8]
+     [keysym _SDL_Keysym]))
+
+(define SDLK_ESCAPE  27)
+
+
+;; Helper functions
+
 (define (event-type event)
     (cast (union-ref (ptr-ref event _SDL_Event) 0) _uint32 _SDL_EventType))
+
+(define (event-keysym event)
+    (SDL_KeyboardEvent-keysym (union-ref (ptr-ref event _SDL_Event) 3)))
+
+
+;; Engine entrypoint
 
 (define (game-thread components)
     (define config
@@ -69,32 +92,54 @@
 
 
 ;; NOTE : this is not the part of engine
-(define (make-example-game)
-    (define texture #f)
-    (define rect (make-SDL_Rect 0 0 600 400))
-
+(define (make-example-game map-renderer)
     (define (load renderer)
-        (define image (SDL_LoadBMP "image.bmp"))
-        (set! texture (SDL_CreateTextureFromSurface renderer image))
-        (SDL_FreeSurface image))
+        #t)
 
     (define (draw renderer)
-        (SDL_RenderCopy renderer texture rect rect))
+        #t)
+
+    (define (event e)
+        (when (eq? (event-type e) 'SDL_KEYDOWN)
+            (let ([sym (SDL_Keysym-sym (event-keysym e))])
+                (cond
+                    [(eq? sym SDLK_ESCAPE) #f]
+                    [(eq? sym SDLK_UP)
+                     (tiled-map-renderer-set-ty
+                      map-renderer
+                      (+ (tiled-map-renderer-get-ty map-renderer) 5))]
+                    [(eq? sym SDLK_DOWN)
+                     (tiled-map-renderer-set-ty
+                      map-renderer
+                      (- (tiled-map-renderer-get-ty map-renderer) 5))]
+                    [(eq? sym SDLK_LEFT)
+                     (tiled-map-renderer-set-tx
+                      map-renderer
+                      (- (tiled-map-renderer-get-tx map-renderer) 5))]
+                    [(eq? sym SDLK_RIGHT)
+                     (tiled-map-renderer-set-tx
+                      map-renderer
+                      (+ (tiled-map-renderer-get-tx map-renderer) 5))]
+                    ))))
 
     (define (quit)
-        (SDL_DestroyTexture texture)
         #t)
 
     (lambda (msg)
         (case msg
             [(load) load]
             [(draw) draw]
+            [(event) event]
             [(quit) quit]
             [else (const #t)])))
 
 (define (run-game)
-    (define game (make-example-game))
+    (define map-file "map.tmx")
+    (define tiled-map-renderer
+        (make-tiled-map-renderer
+         (parse-tiled-map map-file)))
+    (define game (make-example-game tiled-map-renderer))
     (thread
-     (lambda () (game-thread (list game)))))
+     (lambda () (game-thread (list game tiled-map-renderer)))))
 
 (thread-wait (run-game))
