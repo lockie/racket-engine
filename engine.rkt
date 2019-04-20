@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/function ffi/unsafe sdl "sdl-image.rkt" "tiled.rkt")
+(require racket/function ffi/unsafe sdl "sdl-image.rkt" "tiled.rkt" "sprite.rkt")
 
 
 ;; racket-sdl fixups
@@ -139,7 +139,9 @@
         (make-tiled-map-renderer
          (parse-tiled-map map-file)))
     (define game (make-example-game tiled-map-renderer))
+    (define sprite-path "minotaur.ss")
+    (define sprite (make-sprite sprite-path))
     (thread
-     (lambda () (game-thread (list game tiled-map-renderer)))))
+     (lambda () (game-thread (list game tiled-map-renderer sprite)))))
 
 (thread-wait (run-game))
