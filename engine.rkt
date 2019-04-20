@@ -115,11 +115,11 @@
                     [(eq? sym SDLK_LEFT)
                      (tiled-map-renderer-set-tx
                       map-renderer
-                      (- (tiled-map-renderer-get-tx map-renderer) 5))]
+                      (+ (tiled-map-renderer-get-tx map-renderer) 5))]
                     [(eq? sym SDLK_RIGHT)
                      (tiled-map-renderer-set-tx
                       map-renderer
-                      (+ (tiled-map-renderer-get-tx map-renderer) 5))]
+                      (- (tiled-map-renderer-get-tx map-renderer) 5))]
                     ))))
 
     (define (quit)
