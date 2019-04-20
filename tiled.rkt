@@ -73,6 +73,8 @@
              (map parse-layer ((sxpath '(map layer)) document))))))
 
 (define (make-tiled-map-renderer tiled-map)
+    (define window-width 0)
+    (define window-height 0)
     (define tile-width #f)
     (define tile-height #f)
     (define transform-x 0)
@@ -80,6 +82,10 @@
     (define pos-x (const 0))
     (define pos-y (const 0))
     (define tileset-map #f)
+
+    (define (conf config)
+        (set! window-width (hash-ref config 'window-width 0))
+        (set! window-height (hash-ref config 'window-height 0)))
 
     (define (load renderer)
         (define first-tileset (first (tiled-map-tilesets tiled-map)))
@@ -143,14 +149,26 @@
               (lambda (row col tile-index)
                   (let* ([tile (vector-ref tileset-map tile-index)]
                          [texture (car tile)]
-                         [srcrect (cdr tile)])
-                      (void (SDL_RenderCopy
-                             renderer texture
-                             srcrect (make-SDL_Rect
-                                      (pos-x row col)
-                                      (pos-y row col)
-                                      tile-width tile-height)))))))
+                         [srcrect (cdr tile)]
+                         [x (+ transform-x (pos-x row col))]
+                         [y (+ transform-y (pos-y row col))]
+                         [visible? (and (> x (- tile-width))
+                                        (> y (- tile-height))
+                                        (< x window-width)
+                                        (< y window-height))])
+                      (when visible?
+                          (void (SDL_RenderCopy
+                                 renderer texture
+                                 srcrect (make-SDL_Rect
+                                          x y
+                                          tile-width tile-height))))))))
          (tiled-map-layers tiled-map)))
+
+    (define (get-tx)
+        transform-x)
+
+    (define (get-ty)
+        transform-y)
 
     (define (set-tx tx)
         (set! transform-x tx))
@@ -164,10 +182,24 @@
 
     (lambda (msg)
         (case msg
+            [(conf) conf]
             [(load) load]
             [(draw) draw]
+            [(get-tx) get-tx]
+            [(get-ty) get-ty]
             [(set-tx) set-tx]
             [(set-ty) set-ty]
             [(quit) quit]
             [else (const #t)])))
 
+(define (tiled-map-renderer-get-tx r)
+    ((r 'get-tx)))
+
+(define (tiled-map-renderer-get-ty r)
+    ((r 'get-ty)))
+
+(define (tiled-map-renderer-set-tx r tx)
+    ((r 'set-tx) tx))
+
+(define (tiled-map-renderer-set-ty r ty)
+    ((r 'set-ty) ty))
