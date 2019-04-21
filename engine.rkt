@@ -92,9 +92,24 @@
 
 
 ;; NOTE : this is not the part of engine
-(define (make-example-game map-renderer)
+(define (make-example-game map-renderer player-sprite)
     (define (load renderer)
-        #t)
+        (sprite-set-layer-toggled player-sprite 'buckler #f)
+        ;; (sprite-set-layer-toggled player-sprite 'clothes #f)
+        (sprite-set-layer-toggled player-sprite 'dagger #f)
+        (sprite-set-layer-toggled player-sprite 'greatbow #f)
+        (sprite-set-layer-toggled player-sprite 'greatstaff #f)
+        (sprite-set-layer-toggled player-sprite 'greatsword #f)
+        (sprite-set-layer-toggled player-sprite 'leather-armor #f)
+        (sprite-set-layer-toggled player-sprite 'longbow #f)
+        (sprite-set-layer-toggled player-sprite 'longsword #f)
+        (sprite-set-layer-toggled player-sprite 'rod #f)
+        (sprite-set-layer-toggled player-sprite 'shield #f)
+        (sprite-set-layer-toggled player-sprite 'shortbow #f)
+        (sprite-set-layer-toggled player-sprite 'slingshot #f)
+        (sprite-set-layer-toggled player-sprite 'staff #f)
+        (sprite-set-layer-toggled player-sprite 'steel-armor #f)
+        (sprite-set-layer-toggled player-sprite 'wand #f))
 
     (define (draw renderer)
         #t)
@@ -138,10 +153,10 @@
     (define tiled-map-renderer
         (make-tiled-map-renderer
          (parse-tiled-map map-file)))
-    (define game (make-example-game tiled-map-renderer))
-    (define sprite-path "minotaur.ss")
+    (define sprite-path "heroine.ss")
     (define sprite (make-sprite sprite-path))
+    (define game (make-example-game tiled-map-renderer sprite))
     (thread
-     (lambda () (game-thread (list game tiled-map-renderer sprite)))))
+     (lambda () (game-thread (list tiled-map-renderer sprite game)))))
 
 (thread-wait (run-game))

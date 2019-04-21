@@ -36,7 +36,7 @@
     (define current-frame 0)
     (define current-direction 0)
     (define time-counter 0.0)
-    ;; TODO : turn layers on/off
+    (define layers-toggled #f)
 
     (define (load renderer)
         (call-with-input-file path
@@ -52,11 +52,11 @@
                     (set! width (cdr data-width))
                     (set! height (cdr data-height))
                     (set! time-delta (/ 1.0 (cdr data-speed)))
-                    (set! layers
-                        (make-immutable-hasheq
-                         (let* ([layers (cdr data-layers)]
-                                [layer-names (map car layers)]
-                                [layer-file-paths (map cdr layers)])
+                    (let* ([layers-list (cdr data-layers)]
+                           [layer-names (map car layers-list)]
+                           [layer-file-paths (map cdr layers-list)])
+                        (set! layers
+                            (make-immutable-hasheq
                              (map cons layer-names
                                   (map (lambda (layer-path)
                                            (IMG_LoadTexture
@@ -64,7 +64,11 @@
                                             (build-path
                                              (path-only path)
                                              layer-path)))
-                                       layer-file-paths)))))
+                                       layer-file-paths))))
+                        (set! layers-toggled
+                            (make-hasheq
+                             (map cons layer-names
+                                  (make-list (length layer-names) #t)))))
                     (set! stances
                         (make-immutable-hasheq
                          (let* ([stances (cdr data-stances)]
@@ -85,13 +89,14 @@
         (hash-for-each
          layers
          (lambda (name texture)
-             (SDL_RenderCopy
-              renderer texture
-              (make-SDL_Rect
-               (* current-frame width)
-               (* current-direction height)
-               width height)
-              (make-SDL_Rect pos-x pos-y width height)))))
+             (when (hash-ref layers-toggled name #f)
+                 (SDL_RenderCopy
+                  renderer texture
+                  (make-SDL_Rect
+                   (* current-frame width)
+                   (* current-direction height)
+                   width height)
+                  (make-SDL_Rect pos-x pos-y width height))))))
 
     (define (update dt)
         (set! time-counter (+ time-counter dt))
@@ -132,6 +137,12 @@
         (set! current-stance s)
         (set! current-frame (first (hash-ref stances current-stance))))
 
+    (define (get-layer-toggled l)
+        (hash-ref layers-toggled l))
+
+    (define (set-layer-toggled l t)
+        (hash-set! layers-toggled l t))
+
     (define (quit)
         (hash-for-each
          layers
@@ -151,6 +162,8 @@
             [(set-angle) set-angle]
             [(get-stance) get-stance]
             [(set-stance) set-stance]
+            [(get-layer-toggled) get-layer-toggled]
+            [(set-layer-toggled) set-layer-toggled]
             [(quit) quit]
             [else (const #t)])))
 
@@ -177,3 +190,9 @@
 
 (define (sprite-set-stance s st)
     ((s 'set-stance) st))
+
+(define (sprite-get-layer-toggled s l)
+    ((s 'get-layer-toggled) l))
+
+(define (sprite-set-layer-toggled s l t)
+    ((s 'set-layer-toggled) l t))
