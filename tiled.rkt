@@ -75,6 +75,7 @@
 (define (make-tiled-map-renderer tiled-map)
     (define window-width 0)
     (define window-height 0)
+    (define debug? #f)
     (define tile-width 0)
     (define tile-height 0)
     (define transform-x 0)
@@ -85,7 +86,8 @@
 
     (define (conf config)
         (set! window-width (hash-ref config 'window-width 0))
-        (set! window-height (hash-ref config 'window-height 0)))
+        (set! window-height (hash-ref config 'window-height 0))
+        (set! debug? (hash-ref config 'debug #f)))
 
     (define (load renderer)
         (define first-tileset (first (tiled-map-tilesets tiled-map)))
@@ -166,11 +168,34 @@
                                         (< x window-width)
                                         (< y window-height))])
                       (when visible?
-                          (void (SDL_RenderCopy
-                                 renderer texture
-                                 srcrect (make-SDL_Rect
-                                          x y
-                                          tile-width tile-height))))))))
+                          (SDL_RenderCopy
+                           renderer texture
+                           srcrect
+                           (make-SDL_Rect
+                            x y tile-width tile-height))
+                          (void)))))
+             (when debug?
+                 (for-each-tile
+                  layer
+                  (lambda (row col tile-index)
+                      (let* ([tile (vector-ref tileset-map tile-index)]
+                             [srcrect (cdr tile)]
+                             [x (+ transform-x (pos-x row col))]
+                             [y (+ transform-y (pos-y row col))]
+                             [visible? (and (> x (- tile-width))
+                                            (> y (- tile-height))
+                                            (< x window-width)
+                                            (< y window-height))])
+                          (when visible?
+                              (SDL_SetRenderDrawColor
+                               renderer
+                               (* 20 row) (* 20 col) (* 2 row col) 255)
+                              (SDL_RenderDrawRect
+                               renderer
+                               (make-SDL_Rect
+                                x y
+                                tile-width tile-height))
+                              (void)))))))
          (tiled-map-layers tiled-map)))
 
     (define (get-tx)

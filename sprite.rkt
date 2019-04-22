@@ -23,6 +23,8 @@
 ;;  )
 
 (define (make-sprite path)
+    (define debug? #f)
+
     (define width 0)
     (define height 0)
     (define time-delta 0)
@@ -37,6 +39,9 @@
     (define current-direction 0)
     (define time-counter 0.0)
     (define layers-toggled #f)
+
+    (define (conf config)
+        (set! debug? (hash-ref config 'debug #f)))
 
     (define (load renderer)
         (call-with-input-file path
@@ -96,7 +101,17 @@
                    (* current-frame width)
                    (* current-direction height)
                    width height)
-                  (make-SDL_Rect pos-x pos-y width height))))))
+                  (make-SDL_Rect
+                   (exact-round pos-x)
+                   (exact-round pos-y)
+                   width height)))))
+        (when debug?
+            (SDL_SetRenderDrawColor renderer 255 15 192 255)
+            (SDL_RenderDrawRect renderer
+                                (make-SDL_Rect
+                                 (exact-round pos-x)
+                                 (exact-round pos-y)
+                                 width height))))
 
     (define (update dt)
         (set! time-counter (+ time-counter dt))
@@ -151,6 +166,7 @@
 
     (lambda (msg)
         (case msg
+            [(conf) conf]
             [(load) load]
             [(draw) draw]
             [(update) update]
