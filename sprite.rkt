@@ -10,7 +10,13 @@
 ;; (
 ;;  (width . 128)
 ;;  (height . 128)
-;;  (speed . 5)
+;;  (speed
+;;   (idle . 2)
+;;   (move . 5)
+;;   (swing . 5)
+;;   (block . 5)
+;;   (hit . 5)
+;;   (die . 5))
 ;;  (layers
 ;;   (default . "minotaur_alpha.png"))
 ;;  (stances
@@ -27,7 +33,7 @@
 
     (define width 0)
     (define height 0)
-    (define time-delta 0)
+    (define stance-time-deltas #f)
     (define layers #f)
     (define stances #f)
 
@@ -57,7 +63,6 @@
                         (error 'sprite "invalid sprite file: ~a" path))
                     (set! width (cdr data-width))
                     (set! height (cdr data-height))
-                    (set! time-delta (/ 1.0 (cdr data-speed)))
                     (let* ([layers-list (cdr data-layers)]
                            [layer-names (map car layers-list)]
                            [layer-file-paths (map cdr layers-list)])
@@ -87,7 +92,16 @@
                                            (set! index (+ index len))
                                            (range (- index len) index)))
                                    stance-lengths)))))
+                    (set! stance-time-deltas
+                        (make-immutable-hasheq
+                         (map
+                          (lambda (speed)
+                              (cons (car speed) (/ 1.0 (cdr speed))))
+                          (cdr data-speed))))
                     (set-stance 'idle)))))
+
+    (define (time-delta)
+        (hash-ref stance-time-deltas current-stance))
 
     (define (draw renderer)
         (hash-for-each
@@ -114,8 +128,8 @@
 
     (define (update dt)
         (set! time-counter (+ time-counter dt))
-        (when (> time-counter time-delta)
-            (set! time-counter (- time-counter time-delta))
+        (when (> time-counter (time-delta))
+            (set! time-counter (- time-counter (time-delta)))
             (define all-frames (hash-ref stances current-stance))
             (define remaining-frames
                 (cdr (memq current-frame all-frames)))
