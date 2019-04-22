@@ -15,7 +15,7 @@
 ;;   (default . "minotaur_alpha.png"))
 ;;  (stances
 ;;   (idle . 4)
-;;   (rush . 8)
+;;   (move . 8)
 ;;   (swing . 4)
 ;;   (block . 2)
 ;;   (hit . 2)
@@ -32,6 +32,7 @@
     (define stances #f)
 
     (define angle 0)
+    ;; NOTE : screen coords
     (define pos-x 0)
     (define pos-y 0)
     (define current-stance #f)
@@ -86,9 +87,7 @@
                                            (set! index (+ index len))
                                            (range (- index len) index)))
                                    stance-lengths)))))
-                    (set-stance 'idle)
-
-                    ))))
+                    (set-stance 'idle)))))
 
     (define (draw renderer)
         (hash-for-each
@@ -125,6 +124,12 @@
                     (first all-frames)
                     (first remaining-frames)))))
 
+    (define (get-width)
+        width)
+
+    (define (get-height)
+        height)
+
     (define (get-x)
         pos-x)
 
@@ -142,8 +147,10 @@
 
     (define (set-angle a)
         (set! angle a)
+        (when (negative? angle)
+            (set! angle (+ angle (* 2 pi))))
         ;; NOTE : west direction is 0 degree angle; counted clockwise
-        (set! current-direction (exact-round (/ a (/ pi 4)))))
+        (set! current-direction (exact-floor (/ angle (/ pi 4)))))
 
     (define (get-stance)
         current-stance)
@@ -170,6 +177,8 @@
             [(load) load]
             [(draw) draw]
             [(update) update]
+            [(get-width) get-width]
+            [(get-height) get-height]
             [(get-x) get-x]
             [(get-y) get-y]
             [(set-x) set-x]
@@ -182,6 +191,12 @@
             [(set-layer-toggled) set-layer-toggled]
             [(quit) quit]
             [else (const #t)])))
+
+(define (sprite-get-width s)
+    ((s 'get-width)))
+
+(define (sprite-get-height s)
+    ((s 'get-height)))
 
 (define (sprite-get-x s)
     ((s 'get-x)))

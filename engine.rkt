@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/function ffi/unsafe sdl "sdl-image.rkt" "tiled.rkt" "sprite.rkt")
+(require racket/function ffi/unsafe sdl "sdl-image.rkt" "tiled.rkt" "sprite.rkt" "character.rkt")
 
 
 ;; racket-sdl fixups
@@ -16,6 +16,7 @@
      [keysym _SDL_Keysym]))
 
 (define SDLK_ESCAPE  27)
+(define SDLK_d 100)
 
 
 ;; Helper functions
@@ -26,6 +27,11 @@
 (define (event-keysym event)
     (SDL_KeyboardEvent-keysym (union-ref (ptr-ref event _SDL_Event) 3)))
 
+(define (event-mouse-x event)
+    (SDL_MouseButtonEvent-x (union-ref (ptr-ref event _SDL_Event) 7)))
+
+(define (event-mouse-y event)
+    (SDL_MouseButtonEvent-y (union-ref (ptr-ref event _SDL_Event) 7)))
 
 ;; Engine entrypoint
 
@@ -94,7 +100,7 @@
 
 
 ;; NOTE : this is not the part of engine
-(define (make-example-game map-renderer player-sprite)
+(define (make-example-game map-renderer player-sprite player-character)
     (define (load renderer)
         (sprite-set-layer-toggled player-sprite 'buckler #f)
         ;; (sprite-set-layer-toggled player-sprite 'clothes #f)
@@ -117,27 +123,41 @@
         #t)
 
     (define (event e)
+        (when (eq? (event-type e) 'SDL_MOUSEBUTTONDOWN)
+            (let-values ([(x y)
+                          (tiled-map-renderer-screen-to-map
+                           map-renderer (event-mouse-x e) (event-mouse-y e))])
+                (character-set-target-x player-character x)
+                (character-set-target-y player-character y)))
         (when (eq? (event-type e) 'SDL_KEYDOWN)
             (let ([sym (SDL_Keysym-sym (event-keysym e))])
                 (cond
                     [(eq? sym SDLK_ESCAPE) #f]
-                    [(eq? sym SDLK_UP)
-                     (tiled-map-renderer-set-ty
-                      map-renderer
-                      (+ (tiled-map-renderer-get-ty map-renderer) 5))]
-                    [(eq? sym SDLK_DOWN)
-                     (tiled-map-renderer-set-ty
-                      map-renderer
-                      (- (tiled-map-renderer-get-ty map-renderer) 5))]
-                    [(eq? sym SDLK_LEFT)
-                     (tiled-map-renderer-set-tx
-                      map-renderer
-                      (+ (tiled-map-renderer-get-tx map-renderer) 5))]
-                    [(eq? sym SDLK_RIGHT)
-                     (tiled-map-renderer-set-tx
-                      map-renderer
-                      (- (tiled-map-renderer-get-tx map-renderer) 5))]
-                    ))))
+                    [(eq? sym SDLK_d)
+                     ;; some debugging
+                     (define mouse-x (cast (malloc _int) _pointer _int*))
+                     (define mouse-y (cast (malloc _int) _pointer _int*))
+                     (SDL_GetMouseState mouse-x mouse-y)
+                     (define mouse-coord-x (ptr-ref mouse-x _int))
+                     (define mouse-coord-y (ptr-ref mouse-y _int))
+                     (let-values ([(x y)
+                                   (tiled-map-renderer-screen-to-map
+                                    map-renderer mouse-coord-x mouse-coord-y)])
+                         (displayln
+                          (list 'mouse-pos mouse-coord-x mouse-coord-y x y)))
+                     (displayln (append (list 'char-pos)
+                                        (call-with-values
+                                         (lambda () (character-get-pos
+                                                     player-character))
+                                         list)))
+                     (displayln (list 'char-target
+                                      (character-get-target-x player-character)
+                                      (character-get-target-y player-character)))
+                     (displayln (list 'sprite-pos
+                                      (sprite-get-x player-sprite)
+                                      (sprite-get-y player-sprite)))
+                     (newline)
+                     ]))))
 
     (define (quit)
         #t)
@@ -156,9 +176,10 @@
         (make-tiled-map-renderer
          (parse-tiled-map map-file)))
     (define sprite-path "heroine.ss")
-    (define sprite (make-sprite sprite-path))
-    (define game (make-example-game tiled-map-renderer sprite))
+    (define player-sprite (make-sprite sprite-path))
+    (define player-character (make-character player-sprite tiled-map-renderer))
+    (define game (make-example-game tiled-map-renderer player-sprite player-character))
     (thread
-     (lambda () (game-thread (list tiled-map-renderer sprite game)))))
+     (lambda () (game-thread (list tiled-map-renderer player-sprite game player-character)))))
 
 (thread-wait (run-game))

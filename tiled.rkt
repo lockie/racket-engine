@@ -1,7 +1,7 @@
 #lang racket/base
 
 ;; NOTE : additionally requires sxml, csv-reading
-(require racket/list racket/function racket/sequence racket/path sxml csv-reading sdl "sdl-image.rkt" "tiled-layer.rkt")
+(require racket/list racket/function racket/math racket/sequence racket/path sxml csv-reading sdl "sdl-image.rkt" "tiled-layer.rkt")
 
 (provide
  (all-defined-out))
@@ -198,6 +198,12 @@
                               (void)))))))
          (tiled-map-layers tiled-map)))
 
+    (define (get-tile-width)
+        tile-width)
+
+    (define (get-tile-height)
+        tile-height)
+
     (define (get-tx)
         transform-x)
 
@@ -209,6 +215,19 @@
 
     (define (set-ty ty)
         (set! transform-y ty))
+
+    (define (screen-to-map screen-x screen-y)
+        (let ([global-x (- screen-x transform-x)]
+              [global-y (- screen-y transform-y)])
+            ;; XXX hardcoded for staggered case
+            (define row (exact-floor (* 2 (/ global-y tile-height))))
+            (define col (exact-floor (- (/ global-x tile-width)
+                                        (/ (remainder row 2) 2))))
+            (values col row)))
+
+    (define (map-to-screen col row)
+        (values (+ transform-x (pos-x row col))
+                (+ transform-y (pos-y row col))))
 
     (define (quit)
         (sequence-for-each
@@ -222,12 +241,22 @@
             [(conf) conf]
             [(load) load]
             [(draw) draw]
+            [(get-tile-width) get-tile-width]
+            [(get-tile-height) get-tile-height]
             [(get-tx) get-tx]
             [(get-ty) get-ty]
             [(set-tx) set-tx]
             [(set-ty) set-ty]
+            [(screen-to-map) screen-to-map]
+            [(map-to-screen) map-to-screen]
             [(quit) quit]
             [else (const #t)])))
+
+(define (tiled-map-renderer-get-tile-width r)
+    ((r 'get-tile-width)))
+
+(define (tiled-map-renderer-get-tile-height r)
+    ((r 'get-tile-height)))
 
 (define (tiled-map-renderer-get-tx r)
     ((r 'get-tx)))
@@ -240,3 +269,9 @@
 
 (define (tiled-map-renderer-set-ty r ty)
     ((r 'set-ty) ty))
+
+(define (tiled-map-renderer-screen-to-map r x y)
+    ((r 'screen-to-map) x y))
+
+(define (tiled-map-renderer-map-to-screen r row col)
+    ((r 'map-to-screen) row col))
