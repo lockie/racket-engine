@@ -27,11 +27,20 @@
 (define (event-keysym event)
     (SDL_KeyboardEvent-keysym (union-ref (ptr-ref event _SDL_Event) 3)))
 
-(define (event-mouse-x event)
+(define (event-mouse-button-x event)
     (SDL_MouseButtonEvent-x (union-ref (ptr-ref event _SDL_Event) 7)))
 
-(define (event-mouse-y event)
+(define (event-mouse-button-y event)
     (SDL_MouseButtonEvent-y (union-ref (ptr-ref event _SDL_Event) 7)))
+
+(define (event-mouse-motion-state event)
+    (SDL_MouseMotionEvent-state (union-ref (ptr-ref event _SDL_Event) 6)))
+
+(define (event-mouse-motion-x event)
+    (SDL_MouseMotionEvent-x (union-ref (ptr-ref event _SDL_Event) 6)))
+
+(define (event-mouse-motion-y event)
+    (SDL_MouseMotionEvent-y (union-ref (ptr-ref event _SDL_Event) 6)))
 
 ;; Engine entrypoint
 
@@ -128,9 +137,21 @@
         (when (eq? (event-type e) 'SDL_MOUSEBUTTONDOWN)
             (let-values ([(x y)
                           (tiled-map-renderer-screen-to-map
-                           map-renderer (event-mouse-x e) (event-mouse-y e))])
+                           map-renderer
+                           (event-mouse-button-x e)
+                           (event-mouse-button-y e))])
                 (character-set-target-x player-character x)
                 (character-set-target-y player-character y)))
+        (when (eq? (event-type e) 'SDL_MOUSEMOTION)
+            (when (bitwise-bit-set? (event-mouse-motion-state e)
+                                    (sub1 SDL_BUTTON_LEFT))
+                (let-values ([(x y)
+                              (tiled-map-renderer-screen-to-map
+                               map-renderer
+                               (event-mouse-motion-x e)
+                               (event-mouse-motion-y e))])
+                    (character-set-target-x player-character x)
+                    (character-set-target-y player-character y))))
         (when (eq? (event-type e) 'SDL_KEYDOWN)
             (let ([sym (SDL_Keysym-sym (event-keysym e))])
                 (cond
