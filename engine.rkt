@@ -74,6 +74,8 @@
         (unless (andmap (lambda (c) ((c 'load) renderer)) components)
             (error 'engine "loading failed"))
 
+        (collect-garbage)
+
         (let game-loop ([last-tick (SDL_GetPerformanceCounter)])
             (when (let event-loop ()
                       (cond
