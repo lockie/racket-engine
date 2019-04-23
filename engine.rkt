@@ -159,6 +159,9 @@
                      (newline)
                      ]))))
 
+    (define (update dt)
+        (character-center-map player-character))
+
     (define (quit)
         #t)
 
@@ -167,6 +170,7 @@
             [(load) load]
             [(draw) draw]
             [(event) event]
+            [(update) update]
             [(quit) quit]
             [else (const #t)])))
 
