@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/function ffi/unsafe sdl "sdl-image.rkt" "tiled.rkt" "sprite.rkt" "character.rkt")
+(require racket/function ffi/unsafe sdl "sdl-image.rkt" "renderer.rkt" "tiled.rkt" "sprite.rkt" "character.rkt")
 
 
 ;; racket-sdl fixups
@@ -67,20 +67,21 @@
          (config-ref 'window-width)
          (config-ref 'window-height)
          0))
-    (define renderer (SDL_CreateRenderer window -1 0))
-    (SDL_SetRenderDrawColor renderer 0 0 0 255)
+    (define sdl-renderer (SDL_CreateRenderer window -1 0))
+    (SDL_SetRenderDrawColor sdl-renderer 0 0 0 255)
+    (define renderer (make-renderer sdl-renderer))
 
     (define tick-period (/ 1.0 (SDL_GetPerformanceFrequency)))
     (define event (cast (malloc _SDL_Event) _pointer _SDL_Event*))
 
     (define (cleanup)
-        (SDL_DestroyRenderer renderer)
+        (SDL_DestroyRenderer sdl-renderer)
         (SDL_DestroyWindow window)
         (IMG_Quit)
         (SDL_Quit))
 
     (with-handlers ([exn:fail? (lambda (e) (cleanup) (raise e))])
-        (unless (andmap (lambda (c) ((c 'load) renderer)) components)
+        (unless (andmap (lambda (c) ((c 'load) sdl-renderer)) components)
             (error 'engine "loading failed"))
 
         (collect-garbage)
@@ -101,10 +102,11 @@
                  (lambda (c) ((c 'update)
                               (* tick-period (- current-tick last-tick))))
                  components)
-                (SDL_SetRenderDrawColor renderer 0 0 0 255)
-                (SDL_RenderClear renderer)
                 (for-each (lambda (c) ((c 'draw) renderer)) components)
-                (SDL_RenderPresent renderer)
+                (SDL_SetRenderDrawColor sdl-renderer 0 0 0 255)
+                (SDL_RenderClear sdl-renderer)
+                (renderer-do-draw renderer)
+                (SDL_RenderPresent sdl-renderer)
                 (SDL_Delay 1)
                 (game-loop current-tick))))
     (cleanup))
@@ -203,8 +205,9 @@
         (make-tiled-map-renderer
          (parse-tiled-map map-file)))
     (define sprite-path "heroine.ss")
-    (define player-sprite (make-sprite sprite-path))
+    (define player-sprite (make-sprite sprite-path #:player #t))
     (define player-character (make-character player-sprite tiled-map-renderer))
+    (tiled-map-renderer-set-player-sprite tiled-map-renderer player-sprite)
     (define game (make-example-game tiled-map-renderer player-sprite player-character))
     (thread
      (lambda () (game-thread (list tiled-map-renderer player-sprite game player-character)))))

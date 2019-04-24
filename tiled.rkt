@@ -1,7 +1,7 @@
 #lang racket/base
 
 ;; NOTE : additionally requires sxml, csv-reading
-(require racket/list racket/function racket/math racket/sequence racket/path sxml csv-reading sdl "sdl-image.rkt" "tiled-layer.rkt")
+(require racket/list racket/function racket/math racket/sequence racket/path sxml csv-reading sdl "sdl-image.rkt" "renderer.rkt" "tiled-layer.rkt" "sprite.rkt")
 
 (provide
  (all-defined-out))
@@ -28,7 +28,8 @@
          (sxml:num-attr tag 'spacing)
          (sxml:num-attr tag 'margin)
          (sxml:attr ((if-car-sxpath '(image)) tag) 'source)))
-    (define (parse-layer tag)
+    (define (symbolize val) (if val (string->symbol val) #f))
+    (define (parse-layer tag order)
         (define (csv-layer-parser data)
             (let ([array-data (rest (csv->list data))])
                 (lambda (index)
@@ -43,13 +44,19 @@
                 (error 'tiled "invalid layer in map file: ~a" path))
             (build-tiled-layer
              (sxml:num-attr tag 'id)
+             order
              (sxml:attr tag 'name)
              width
              height
+             (make-immutable-hasheq
+              (map
+               (lambda (property-tag)
+                   (cons (symbolize (sxml:attr property-tag 'name))
+                         (sxml:attr property-tag 'value)))
+               ((sxpath '(properties property)) tag)))
              (case (sxml:attr data 'encoding)
                  [("csv") (csv-layer-parser (sxml:text data))]
                  [else #f]))))
-    (define (symbolize val) (if val (string->symbol val) #f))
     (call-with-input-file path
         (lambda (port)
             (define document (ssax:xml->sxml port '()))
@@ -70,7 +77,12 @@
              (symbolize (sxml:attr map-tag 'staggerindex))
              (sxml:attr map-tag 'backgroundcolor)
              (map parse-tileset ((sxpath '(map tileset)) document))
-             (map parse-layer ((sxpath '(map layer)) document))))))
+             (map
+              (let ([order 0])
+                  (lambda (layer-tag)
+                      (set! order (add1 order))
+                      (parse-layer layer-tag order)))
+              ((sxpath '(map layer)) document))))))
 
 (define (make-tiled-map-renderer tiled-map)
     (define window-width 0)
@@ -83,6 +95,8 @@
     (define pos-x (const 0))
     (define pos-y (const 0))
     (define tileset-map #f)
+
+    (define player-sprite #f)
 
     (define (conf config)
         (set! window-width (hash-ref config 'window-width 0))
@@ -136,6 +150,7 @@
                   (build-path
                    (path-only (tiled-map-file-path tiled-map))
                    (tiled-tileset-image-source tileset))))
+             (SDL_SetTextureBlendMode texture 'SDL_BLENDMODE_BLEND)
              (define first-index (tiled-tileset-first-id tileset))
              (define columns (tiled-tileset-columns tileset))
              (for ([i (range
@@ -153,8 +168,24 @@
         (set! tileset-map (vector->immutable-vector temp-map)))
 
     (define (draw renderer)
+        (define player-x (sprite-get-x player-sprite))
+        (define player-y (sprite-get-y player-sprite))
         (for-each
          (lambda (layer)
+             (define ground-layer?
+                 (string=?
+                  (hash-ref (tiled-layer-properties layer) 'ground "")
+                  "true"))
+             (define layer-order
+                 (+ (tiled-layer-order layer)
+                    (if ground-layer? 0 100)))
+             (define (obscures-player? x y)
+                 (and
+                  (not ground-layer?)
+                  (> x (sub1 player-x))
+                  (< x (+ player-x tile-width 1))
+                  (> y (+ player-y 1))
+                  (< y (+ player-y (* 3 tile-height) 1))))
              (for-each-tile
               layer
               (lambda (row col tile-index)
@@ -168,11 +199,17 @@
                                         (< x window-width)
                                         (< y window-height))])
                       (when visible?
-                          (SDL_RenderCopy
-                           renderer texture
-                           srcrect
-                           (make-SDL_Rect
-                            x y tile-width tile-height))
+                          (define opacity (if (obscures-player? x y) 100 255))
+                          (renderer-render
+                           renderer
+                           layer-order
+                           (lambda (sdl-renderer)
+                               (SDL_SetTextureAlphaMod texture opacity)
+                               (SDL_RenderCopy
+                                sdl-renderer texture
+                                srcrect
+                                (make-SDL_Rect
+                                 x y tile-width tile-height))))
                           (void)))))
              (when debug?
                  (for-each-tile
@@ -187,15 +224,19 @@
                                             (< x window-width)
                                             (< y window-height))])
                           (when visible?
-                              (SDL_SetRenderDrawColor
+                              (renderer-render
                                renderer
-                               (* 20 row) (* 20 col) (* 2 row col) 255)
-                              (SDL_RenderDrawRect
-                               renderer
-                               (make-SDL_Rect
-                                x y
-                                tile-width tile-height))
-                              (void)))))))
+                               1000
+                               (lambda (sdl-renderer)
+                                   (SDL_SetRenderDrawColor
+                                    sdl-renderer
+                                    (* 20 row) (* 20 col) (* 2 row col) 255)
+                                   (SDL_RenderDrawRect
+                                    sdl-renderer
+                                    (make-SDL_Rect
+                                     x y
+                                     tile-width tile-height))
+                                   (void)))))))))
          (tiled-map-layers tiled-map)))
 
     (define (get-tile-width)
@@ -229,6 +270,9 @@
         (values (+ transform-x (pos-x row col))
                 (+ transform-y (pos-y row col))))
 
+    (define (set-player-sprite sprite)
+        (set! player-sprite sprite))
+
     (define (quit)
         (sequence-for-each
          (lambda (tile)
@@ -249,6 +293,7 @@
             [(set-ty) set-ty]
             [(screen-to-map) screen-to-map]
             [(map-to-screen) map-to-screen]
+            [(set-player-sprite) set-player-sprite]
             [(quit) quit]
             [else (const #t)])))
 
@@ -275,3 +320,6 @@
 
 (define (tiled-map-renderer-map-to-screen r row col)
     ((r 'map-to-screen) row col))
+
+(define (tiled-map-renderer-set-player-sprite r s)
+    ((r 'set-player-sprite) s))

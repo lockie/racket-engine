@@ -3,22 +3,26 @@
 (require math/array)
 
 (provide
+ tiled-layer-order
+ tiled-layer-properties
  build-tiled-layer
  for-each-tile)
 
 
 (struct tiled-layer ([id : Positive-Integer]
+                     [order : Positive-Integer]
                      [name : String]
                      [width : Positive-Integer]
                      [height : Positive-Integer]
+                     [properties : Any]
                      [data : (Array Nonnegative-Integer)]) #:transparent)
 
 (: build-tiled-layer
-   (-> Positive-Integer String Positive-Integer Positive-Integer
+   (-> Positive-Integer Positive-Integer String Positive-Integer Positive-Integer Any
        (-> Indexes Nonnegative-Integer) tiled-layer))
-(define (build-tiled-layer id name width height data-proc)
+(define (build-tiled-layer id order name width height properties data-proc)
     (tiled-layer
-     id name width height
+     id order name width height properties
      (build-array
       (vector height width)
       data-proc)))

@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/list racket/function racket/math racket/path sdl "sdl-image.rkt")
+(require racket/list racket/function racket/math racket/path sdl "sdl-image.rkt" "renderer.rkt")
 
 (provide
  (all-defined-out))
@@ -28,7 +28,7 @@
 ;;   (die . 4))
 ;;  )
 
-(define (make-sprite path)
+(define (make-sprite path #:player [player #f])
     (define debug? #f)
 
     (define width 0)
@@ -108,23 +108,32 @@
          layers
          (lambda (name texture)
              (when (hash-ref layers-toggled name #f)
-                 (SDL_RenderCopy
-                  renderer texture
-                  (make-SDL_Rect
-                   (* current-frame width)
-                   (* current-direction height)
-                   width height)
+                 (renderer-render
+                  renderer
+                  (if player 10 20)
+                  (lambda (sdl-renderer)
+                      (SDL_RenderCopy
+                       sdl-renderer texture
+                       (make-SDL_Rect
+                        (* current-frame width)
+                        (* current-direction height)
+                        width height)
+                       (make-SDL_Rect
+                        (exact-round pos-x)
+                        (exact-round pos-y)
+                        width height)))))))
+        (when debug?
+            (renderer-render
+             renderer
+             1010
+             (lambda (sdl-renderer)
+                 (SDL_SetRenderDrawColor sdl-renderer 255 15 192 255)
+                 (SDL_RenderDrawRect
+                  sdl-renderer
                   (make-SDL_Rect
                    (exact-round pos-x)
                    (exact-round pos-y)
-                   width height)))))
-        (when debug?
-            (SDL_SetRenderDrawColor renderer 255 15 192 255)
-            (SDL_RenderDrawRect renderer
-                                (make-SDL_Rect
-                                 (exact-round pos-x)
-                                 (exact-round pos-y)
-                                 width height))))
+                   width height))))))
 
     (define (update dt)
         (set! time-counter (+ time-counter dt))
