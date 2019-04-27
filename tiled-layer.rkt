@@ -5,8 +5,11 @@
 (provide
  tiled-layer-order
  tiled-layer-properties
+ tiled-layer-width
+ tiled-layer-height
  build-tiled-layer
- for-each-tile)
+ for-each-tile
+ pick-tile)
 
 
 (struct tiled-layer ([id : Positive-Integer]
@@ -37,3 +40,8 @@
         (define tile-index (array-ref (tiled-layer-data layer) (vector row col)))
         (unless (zero? tile-index)
             (proc row col tile-index))))
+
+(: pick-tile
+   (-> tiled-layer Nonnegative-Integer Nonnegative-Integer Nonnegative-Integer))
+(define (pick-tile layer row col)
+    (array-ref (tiled-layer-data layer) (vector row col)))

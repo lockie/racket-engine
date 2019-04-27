@@ -173,7 +173,7 @@
         (when (negative? angle)
             (set! angle (+ angle (* 2 pi))))
         ;; NOTE : west direction is 0 degree angle; counted clockwise
-        (set! current-direction (exact-floor (/ angle (/ pi 4)))))
+        (set! current-direction (remainder (exact-round (/ angle (/ pi 4))) 8)))
 
     (define (get-stance)
         current-stance)

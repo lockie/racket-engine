@@ -39,6 +39,9 @@
             (set! target-x x)
             (set! target-y y)))
 
+    (define (approx-equal? x y)
+        (< (abs (- x y)) 1))
+
     (define (switch-stance stance)
         (unless (eq? (sprite-get-stance sprite) stance)
             (sprite-set-stance sprite stance)))
@@ -59,32 +62,67 @@
 
     (define (move dt)
         ;; TODO : walking sound
-        (switch-stance 'move)
         (let-values ([(x y)
                       (tiled-map-renderer-map-to-screen
-                       tiled-map target-x target-y)])
-            (define direction (atan (- (sprite-with-offset-y) y)
-                                    (- (sprite-with-offset-x) x)))
+                       tiled-map target-x target-y)]
+                     [(curr-x curr-y) (get-pos)])
+            (define direction
+                (atan (- (sprite-with-offset-y) y)
+                      (- (sprite-with-offset-x) x)))
+            (define distance (* speed dt))
             ;; TODO : turn speed
             ;; TODO : diagonal movement feels different than straight rectilinear.
             ;;  Probably it has something to do with tile width/height ratio.
-            (sprite-set-angle sprite direction)
-            (define distance (* speed dt))
-            (sprite-set-x
-             sprite
-             (- (sprite-get-x sprite) (* distance (cos direction))))
-            (sprite-set-y
-             sprite
-             (- (sprite-get-y sprite) (* distance (sin direction))))))
+            (let-values([(next-tile-x next-tile-y)
+                         (tiled-map-renderer-adjacent-tile
+                          tiled-map curr-x curr-y direction)])
+                ;; TODO : this algorithm certainly can use some polishing
+                (if (tiled-map-renderer-tile-traversable?
+                     tiled-map next-tile-x next-tile-y)
+                    (begin
+                        (switch-stance 'move)
+                        (sprite-set-angle sprite direction)
+                        (sprite-set-x
+                         sprite
+                         (- (sprite-get-x sprite)
+                            (* distance (cos direction))))
+                        (sprite-set-y
+                         sprite
+                         (- (sprite-get-y sprite)
+                            (* distance (sin direction)))))
+                    (begin
+                        (switch-stance 'idle)
+                        (set! target-x curr-x)
+                        (set! target-y curr-y)
+                        (let-values ([(new-curr-x new-curr-y)
+                                      (tiled-map-renderer-map-to-screen
+                                       tiled-map curr-x curr-y)])
+                            (unless (and (approx-equal?
+                                          new-curr-x
+                                          (sprite-with-offset-x))
+                                         (approx-equal?
+                                          new-curr-y
+                                          (sprite-with-offset-y)))
+                                ;; smoothly slow down
+                                (define direction
+                                    (atan (- (sprite-with-offset-y) new-curr-y)
+                                          (- (sprite-with-offset-x) new-curr-x)))
+                                (sprite-set-angle sprite direction)
+                                (sprite-set-x
+                                 sprite
+                                 (- (sprite-get-x sprite)
+                                    (* distance (cos direction))))
+                                (sprite-set-y
+                                 sprite
+                                 (- (sprite-get-y sprite)
+                                    (* distance (sin direction)))))))))))
 
     (define (update dt)
-        (define (approx-equal x y)
-            (< (abs (- x y)) 0.5))
         (let-values ([(x y)
                       (tiled-map-renderer-map-to-screen
                        tiled-map target-x target-y)])
-            (if (and (approx-equal (sprite-with-offset-x) x)
-                     (approx-equal (sprite-with-offset-y) y))
+            (if (and (approx-equal? (sprite-with-offset-x) x)
+                     (approx-equal? (sprite-with-offset-y) y))
                 (switch-stance 'idle)
                 (move dt))))
 
@@ -112,14 +150,12 @@
         (when (or (> (abs x-diff) 1) (> (abs y-diff) 1))
             (tiled-map-renderer-set-tx
              tiled-map
-             (exact-floor
               (+ (tiled-map-renderer-get-tx tiled-map)
-                 x-diff)))
+                 x-diff))
             (tiled-map-renderer-set-ty
              tiled-map
-             (exact-floor
               (+ (tiled-map-renderer-get-ty tiled-map)
-                 y-diff)))
+                 y-diff))
             (sprite-set-x
              sprite
              (+ (sprite-get-x sprite)

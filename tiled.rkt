@@ -167,15 +167,17 @@
          (tiled-map-tilesets tiled-map))
         (set! tileset-map (vector->immutable-vector temp-map)))
 
+    (define (ground? layer)
+        (string=?
+         (hash-ref (tiled-layer-properties layer) 'ground "")
+         "true"))
+
     (define (draw renderer)
         (define player-x (sprite-get-x player-sprite))
         (define player-y (sprite-get-y player-sprite))
         (for-each
          (lambda (layer)
-             (define ground-layer?
-                 (string=?
-                  (hash-ref (tiled-layer-properties layer) 'ground "")
-                  "true"))
+             (define ground-layer? (ground? layer))
              (define layer-order
                  (+ (tiled-layer-order layer)
                     (if ground-layer? 0 100)))
@@ -209,7 +211,7 @@
                                 sdl-renderer texture
                                 srcrect
                                 (make-SDL_Rect
-                                 x y tile-width tile-height))))
+                                 (exact-round x) (exact-round y) tile-width tile-height))))
                           (void)))))
              (when debug?
                  (for-each-tile
@@ -234,7 +236,7 @@
                                    (SDL_RenderDrawRect
                                     sdl-renderer
                                     (make-SDL_Rect
-                                     x y
+                                     (exact-round x) (exact-round y)
                                      tile-width tile-height))
                                    (void)))))))))
          (tiled-map-layers tiled-map)))
@@ -261,8 +263,8 @@
         (let ([global-x (- screen-x transform-x)]
               [global-y (- screen-y transform-y)])
             ;; XXX hardcoded for staggered case
-            (define row (exact-floor (* 2 (/ global-y tile-height))))
-            (define col (exact-floor (- (/ global-x tile-width)
+            (define row (exact-round (* 2 (/ global-y tile-height))))
+            (define col (exact-round (- (/ global-x tile-width)
                                         (/ (remainder row 2) 2))))
             (values col row)))
 
@@ -272,6 +274,37 @@
 
     (define (set-player-sprite sprite)
         (set! player-sprite sprite))
+
+    (define (adjacent-tile col row angle)
+        (when (negative? angle)
+            (set! angle (+ angle (* 2 pi))))
+        (define direction (remainder (exact-round (/ angle (/ pi 4))) 8))
+        (case direction
+            [(0) (values (sub1 col) row)]
+            [(1) (values (- col (remainder (add1 row) 2)) (sub1 row))]
+            [(2) (values col (- row 2))]
+            [(3) (values (+ col (remainder row 2)) (sub1 row))]
+            [(4) (values (add1 col) row)]
+            [(5) (values (+ col (remainder row 2)) (add1 row))]
+            [(6) (values col (+ row 2))]
+            [(7) (values (- col (remainder (add1 row) 2)) (add1 row))]
+            [else (error 'tiled "Wrong direction: ~a" direction)]))
+
+    (define (tile-traversable? col row)
+        (if (or (negative? row) (negative? col))
+            #f
+            (andmap
+             (lambda (layer)
+                 (cond
+                     [(or (>= row (tiled-layer-height layer))
+                          (>= col (tiled-layer-width layer)))
+                      #f]
+                     [(ground? layer)
+                      #t]
+                     ;; TODO : read "traversable" property of tiles
+                     [else
+                      (zero? (pick-tile layer row col))]))
+             (tiled-map-layers tiled-map))))
 
     (define (quit)
         (sequence-for-each
@@ -294,6 +327,8 @@
             [(screen-to-map) screen-to-map]
             [(map-to-screen) map-to-screen]
             [(set-player-sprite) set-player-sprite]
+            [(adjacent-tile) adjacent-tile]
+            [(tile-traversable?) tile-traversable?]
             [(quit) quit]
             [else (const #t)])))
 
@@ -323,3 +358,9 @@
 
 (define (tiled-map-renderer-set-player-sprite r s)
     ((r 'set-player-sprite) s))
+
+(define (tiled-map-renderer-adjacent-tile r col row a)
+    ((r 'adjacent-tile) col row a))
+
+(define (tiled-map-renderer-tile-traversable? r col row)
+    ((r 'tile-traversable?) col row))
