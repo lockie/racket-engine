@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/function ffi/unsafe sdl "sdl-image.rkt" "renderer.rkt" "tiled.rkt" "sprite.rkt" "character.rkt")
+(require racket/function ffi/unsafe sdl "sdl-image.rkt" "renderer.rkt" "tiled.rkt" "sprite.rkt" "character.rkt" "mob.rkt")
 
 
 ;; racket-sdl fixups
@@ -113,7 +113,7 @@
 
 
 ;; NOTE : this is not the part of engine
-(define (make-example-game map-renderer player-sprite player-character)
+(define (make-example-game map-renderer player-sprite player-character mob-sprite mob-character mob)
     (define (load renderer)
         (sprite-set-layer-toggled player-sprite 'buckler #f)
         ;; (sprite-set-layer-toggled player-sprite 'clothes #f)
@@ -185,7 +185,22 @@
                      ]))))
 
     (define (update dt)
-        (character-center-map player-character))
+        (character-center-map player-character)
+        (let-values ([(x y) (character-get-pos player-character)]
+                     [(mob-x mob-y) (character-get-pos mob-character)])
+            (if (or (> (abs (- x mob-x)) 1)
+                    (> (abs (- y mob-y)) 1))
+                (let ()
+                    (define mob-direction
+                        (atan (- (sprite-get-y player-sprite)
+                                 (sprite-get-y mob-sprite))
+                              (- (sprite-get-x player-sprite)
+                                 (sprite-get-x mob-sprite))))
+                    (let-values ([(mob-dest-x mob-dest-y)
+                                  (tiled-map-renderer-adjacent-tile
+                                   map-renderer x y mob-direction)])
+                        (mob-set-destination mob mob-dest-x mob-dest-y)))
+                (character-switch-stance mob-character 'swing))))
 
     (define (quit)
         #t)
@@ -204,12 +219,27 @@
     (define tiled-map-renderer
         (make-tiled-map-renderer
          (parse-tiled-map map-file)))
-    (define sprite-path "heroine.ss")
-    (define player-sprite (make-sprite sprite-path #:player #t))
+    (define player-sprite-path "heroine.ss")
+    (define player-sprite (make-sprite player-sprite-path #:player #t))
     (define player-character (make-character player-sprite tiled-map-renderer))
     (tiled-map-renderer-set-player-sprite tiled-map-renderer player-sprite)
-    (define game (make-example-game tiled-map-renderer player-sprite player-character))
+    (define mob-sprite-path "minotaur.ss")
+    (define mob-sprite (make-sprite mob-sprite-path))
+    (sprite-set-x mob-sprite 600)
+    (sprite-set-y mob-sprite 80)
+    (define mob-character (make-character mob-sprite tiled-map-renderer))
+    (define mob (make-mob mob-character player-character tiled-map-renderer))
+    (define game (make-example-game tiled-map-renderer player-sprite player-character mob-sprite mob-character mob))
     (thread
-     (lambda () (game-thread (list tiled-map-renderer player-sprite game player-character)))))
 
+     (lambda ()
+         (game-thread
+          (list
+           tiled-map-renderer
+           player-sprite
+           game
+           player-character
+           mob-sprite
+           mob-character
+           mob)))))
 (thread-wait (run-game))

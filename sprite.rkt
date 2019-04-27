@@ -188,6 +188,9 @@
     (define (set-layer-toggled l t)
         (hash-set! layers-toggled l t))
 
+    (define (player?)
+        player)
+
     (define (quit)
         (hash-for-each
          layers
@@ -212,6 +215,7 @@
             [(set-stance) set-stance]
             [(get-layer-toggled) get-layer-toggled]
             [(set-layer-toggled) set-layer-toggled]
+            [(player?) player?]
             [(quit) quit]
             [else (const #t)])))
 
@@ -250,3 +254,6 @@
 
 (define (sprite-set-layer-toggled s l t)
     ((s 'set-layer-toggled) l t))
+
+(define (sprite-player? s)
+    ((s 'player?)))

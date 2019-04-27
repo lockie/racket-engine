@@ -40,7 +40,7 @@
             (set! target-y y)))
 
     (define (approx-equal? x y)
-        (< (abs (- x y)) 1))
+        (< (abs (- x y)) 2))
 
     (define (switch-stance stance)
         (unless (eq? (sprite-get-stance sprite) stance)
@@ -123,7 +123,11 @@
                        tiled-map target-x target-y)])
             (if (and (approx-equal? (sprite-with-offset-x) x)
                      (approx-equal? (sprite-with-offset-y) y))
-                (switch-stance 'idle)
+                (begin
+                    (when (eq? (sprite-get-stance sprite) 'move)
+                        (switch-stance 'idle))
+                    (sprite-set-x sprite (- x sprite-offset-x))
+                    (sprite-set-y sprite (- y sprite-offset-y)))
                 (move dt))))
 
     (define (get-pos)
@@ -170,6 +174,7 @@
             [(conf) conf]
             [(load) load]
             [(update) update]
+            [(switch-stance) switch-stance]
             [(get-pos) get-pos]
             [(get-target-x) get-target-x]
             [(get-target-y) get-target-y]
@@ -177,6 +182,9 @@
             [(set-target-y) set-target-y]
             [(center-map) center-map]
             [else (const #t)])))
+
+(define (character-switch-stance c s)
+    ((c 'switch-stance) s))
 
 (define (character-get-pos c)
     ((c 'get-pos)))
