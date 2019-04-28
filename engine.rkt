@@ -216,6 +216,7 @@
                         (character-set-attack-target player-character #f)
                         (character-set-target-x player-character x)
                         (character-set-target-y player-character y)))))
+        (character-set-attack-target player-character #f)
         (case (event-type e)
             [(SDL_MOUSEBUTTONDOWN)
              (do-click (event-mouse-button-x e) (event-mouse-button-y e))]
