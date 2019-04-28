@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/function racket/math racket/list racket/set data/heap "tiled.rkt" "sprite.rkt")
+(require racket/function racket/math racket/list racket/set data/heap "sdl-mixer.rkt" "tiled.rkt" "sprite.rkt")
 
 (provide
  (all-defined-out))
@@ -24,6 +24,8 @@
     (define sprite-offset-y 0)
 
     (define attack-target #f)
+
+    (define hit-sound #f)
 
     (define (astar start-x start-y dest-x dest-y)
         (define (f path)
@@ -68,6 +70,7 @@
         (set! screen-height (hash-ref config 'window-height 0)))
 
     (define (load renderer)
+        (set! hit-sound (Mix_LoadWAV "hit15.ogg"))
         ;; XXX these are somewhat hardcoded formulas for Flare character sprites
         (set! sprite-offset-x
             (exact-floor
@@ -105,7 +108,6 @@
            (tiled-map-renderer-get-ty tiled-map)))
 
     (define (move dt)
-        ;; TODO : walking sound
         (let-values ([(x y)
                       (tiled-map-renderer-map-to-screen
                        tiled-map target-x target-y)]
@@ -280,6 +282,7 @@
                       (* 75 (/ offence (character-get-defence attack-target))))
                    (roll-dice 1 100)))
             (when attack-connected?
+                (Mix_PlayChannel -1 hit-sound 0)
                 (define damage (roll-damage offence))
                 (define critical? (< (roll-dice 1 100) crit-chance))
                 (when critical?

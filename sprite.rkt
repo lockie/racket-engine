@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/list racket/function racket/math racket/path sdl "sdl-image.rkt" "renderer.rkt")
+(require racket/list racket/function racket/math racket/path sdl "sdl-image.rkt" "sdl-mixer.rkt" "renderer.rkt")
 
 (provide
  (all-defined-out))
@@ -17,6 +17,12 @@
 ;;   (block . 5)
 ;;   (hit . 5)
 ;;   (die . 5))
+;;  (sounds
+;;   (4 . "sounds/stomp_01.ogg")
+;;   (8 . "sounds/stomp_01.ogg")
+;;   (13 . "sounds/mino-attack.ogg")
+;;   (18 . "sounds/mino-hit.ogg")
+;;   (20 . "sounds/mino-death.ogg"))
 ;;  (layers
 ;;   (default . "minotaur_alpha.png"))
 ;;  (stances
@@ -36,6 +42,8 @@
     (define stance-time-deltas #f)
     (define layers #f)
     (define stances #f)
+    (define sounds #f)
+    (define last-sounded-frame -1)
 
     (define angle 0)
     ;; NOTE : screen coords
@@ -58,8 +66,10 @@
                        [data-height (assq 'height data)]
                        [data-speed (assq 'speed data)]
                        [data-layers (assq 'layers data)]
-                       [data-stances (assq 'stances data)])
-                    (unless (and data-width data-height data-layers data-stances)
+                       [data-stances (assq 'stances data)]
+                       [data-sounds (assq 'sounds data)])
+                    (unless (and data-width data-height data-layers data-stances
+                                 data-sounds)
                         (error 'sprite "invalid sprite file: ~a" path))
                     (set! width (cdr data-width))
                     (set! height (cdr data-height))
@@ -98,6 +108,17 @@
                           (lambda (speed)
                               (cons (car speed) (/ 1.0 (cdr speed))))
                           (cdr data-speed))))
+                    (set! sounds
+                        (make-immutable-hasheq
+                         (map
+                          (lambda (sound)
+                              (cons
+                               (car sound)
+                               (Mix_LoadWAV
+                                (build-path
+                                 (path-only path)
+                                 (cdr sound)))))
+                          (cdr data-sounds))))
                     (set-stance 'idle)))))
 
     (define (time-delta)
@@ -136,6 +157,11 @@
                    width height))))))
 
     (define (update dt)
+        (unless (= last-sounded-frame current-frame)
+            (set! last-sounded-frame current-frame)
+            (define sound (hash-ref sounds current-frame #f))
+            (when sound
+                (Mix_PlayChannel -1 sound 0)))
         (set! time-counter (+ time-counter dt))
         (when (> time-counter (time-delta))
             (set! time-counter (- time-counter (time-delta)))
@@ -182,7 +208,8 @@
 
     (define (set-stance s)
         (set! current-stance s)
-        (set! current-frame (first (hash-ref stances current-stance))))
+        (set! current-frame (first (hash-ref stances current-stance)))
+        (set! time-counter 0))
 
     (define (get-layer-toggled l)
         (hash-ref layers-toggled l))
