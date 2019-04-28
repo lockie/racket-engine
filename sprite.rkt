@@ -131,7 +131,10 @@
              (when (hash-ref layers-toggled name #f)
                  (renderer-render
                   renderer
-                  (if player 10 20)
+                  (cond
+                      [player 30]
+                      [(eq? current-stance 'die) 10]
+                      [else 50])
                   (lambda (sdl-renderer)
                       (SDL_RenderCopy
                        sdl-renderer texture

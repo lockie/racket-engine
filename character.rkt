@@ -167,57 +167,70 @@
         (when (and (eq? (sprite-get-stance sprite) 'hit)
                    (sprite-stance-finished? sprite))
             (if (dead?)
-                (sprite-set-stance sprite 'die)
+                (let-values ([(x y) (get-pos)])
+                    (set! target-x x)
+                    (set! target-y y)
+                    (sprite-set-stance sprite 'die))
                 (sprite-set-stance sprite 'idle)))
-        (unless (or (eq? (sprite-get-stance sprite) 'die)
-                    (eq? (sprite-get-stance sprite) 'hit))
-            (when attack-target
-                (let-values ([(attack-target-x attack-target-y)
-                              (character-get-pos attack-target)]
-                             [(x y) (get-pos)])
-                    (define direction
-                        (atan (- (sprite-get-y
-                                  (character-get-sprite attack-target))
-                                 (sprite-get-y sprite))
-                              (- (sprite-get-x
-                                  (character-get-sprite attack-target))
-                                 (sprite-get-x sprite))))
-                    (let-values ([(dest-x dest-y)
-                                  (tiled-map-renderer-adjacent-tile
-                                   tiled-map attack-target-x attack-target-y
-                                   direction)])
-                        (if player
-                            (begin
-                                (set! target-x dest-x)
-                                (set! target-y dest-y))
-                            (begin
-                                (let* ([path (astar x y dest-x dest-y)]
-                                       [first-step
-                                        (if (and path (> (length path) 1))
-                                            (second path)
-                                            #f)])
-                                    (when first-step
-                                        (set! target-x (car first-step))
-                                        (set! target-y (cdr first-step)))))))))
-            (let-values ([(x y)
-                          (tiled-map-renderer-map-to-screen
-                           tiled-map target-x target-y)])
-                (if (and (approx-equal? (sprite-with-offset-x) x)
-                         (approx-equal? (sprite-with-offset-y) y))
-                    (begin
-                        (when (eq? (sprite-get-stance sprite) 'move)
-                            (switch-stance 'idle))
-                        (sprite-set-x sprite (- x sprite-offset-x))
-                        (sprite-set-y sprite (- y sprite-offset-y))
-                        (when (and attack-target
-                                   (not (character-dead? attack-target)))
-                            (let-values ([(attack-target-x attack-target-y)
-                                          (character-get-pos attack-target)]
-                                         [(x y) (get-pos)])
-                                (when (and (< (abs (- x attack-target-x)) 2)
-                                           (< (abs (- y attack-target-y)) 2))
-                                    (do-attack)))))
-                    (move dt)))))
+        (cond
+            [(eq? (sprite-get-stance sprite) 'die)
+             (let-values ([(x y)
+                           (tiled-map-renderer-map-to-screen
+                            tiled-map target-x target-y)])
+                 (sprite-set-x sprite (- x sprite-offset-x))
+                 (sprite-set-y sprite (- y sprite-offset-y)))]
+            [(not (eq? (sprite-get-stance sprite) 'hit))
+             (when (and attack-target
+                        (not (character-dead? attack-target)))
+                 (let-values ([(attack-target-x attack-target-y)
+                               (character-get-pos attack-target)]
+                              [(x y) (get-pos)])
+                     (define diff-x (- (sprite-get-x
+                                        (character-get-sprite attack-target))
+                                       (sprite-get-x sprite)))
+                     (define diff-y (- (sprite-get-y
+                                        (character-get-sprite attack-target))
+                                       (sprite-get-y sprite)))
+                     (when (and (> (abs diff-x) 1) (> (abs diff-y) 1))
+                         (define direction (atan diff-y diff-x))
+                         (sprite-set-angle sprite (- pi direction))
+                         (let-values ([(dest-x dest-y)
+                                       (tiled-map-renderer-adjacent-tile
+                                        tiled-map attack-target-x attack-target-y
+                                        direction)])
+                             (if player
+                                 (begin
+                                     (set! target-x dest-x)
+                                     (set! target-y dest-y))
+                                 (begin
+                                     (let* ([path (astar x y dest-x dest-y)]
+                                            [first-step
+                                             (if (and path (> (length path) 1))
+                                                 (second path)
+                                                 #f)])
+                                         (when first-step
+                                             (set! target-x (car first-step))
+                                             (set! target-y (cdr first-step))))))))))
+             (let-values ([(x y)
+                           (tiled-map-renderer-map-to-screen
+                            tiled-map target-x target-y)])
+                 (if (and (approx-equal? (sprite-with-offset-x) x)
+                          (approx-equal? (sprite-with-offset-y) y))
+                     (begin
+                         (when (eq? (sprite-get-stance sprite) 'move)
+                             (switch-stance 'idle))
+                         (sprite-set-x sprite (- x sprite-offset-x))
+                         (sprite-set-y sprite (- y sprite-offset-y))
+                         (when (and attack-target
+                                    (not (character-dead? attack-target)))
+                             (let-values ([(attack-target-x attack-target-y)
+                                           (character-get-pos attack-target)]
+                                          [(x y) (get-pos)])
+                                 (when (and (< (abs (- x attack-target-x)) 2)
+                                            (< (abs (- y attack-target-y)) 2))
+                                     (do-attack)))))
+                     (move dt)))]))
+
 
     (define (get-sprite)
         sprite)
@@ -235,10 +248,12 @@
         target-y)
 
     (define (set-target-x x)
-        (set! target-x x))
+        (unless (dead?)
+            (set! target-x x)))
 
     (define (set-target-y y)
-        (set! target-y y))
+        (unless (dead?)
+            (set! target-y y)))
 
     (define (center-map)
         (define x-diff (- (/ screen-width 2) (sprite-with-offset-x)))

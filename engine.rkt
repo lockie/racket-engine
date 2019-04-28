@@ -198,53 +198,35 @@
         #t)
 
     (define (event e)
-        (when (eq? (event-type e) 'SDL_MOUSEBUTTONDOWN)
+        (define (do-click screen-x screen-y)
             (let-values ([(x y)
                           (tiled-map-renderer-screen-to-map
-                           map-renderer
-                           (event-mouse-button-x e)
-                           (event-mouse-button-y e))])
-                (character-set-target-x player-character x)
-                (character-set-target-y player-character y)))
-        (when (eq? (event-type e) 'SDL_MOUSEMOTION)
-            (when (bitwise-bit-set? (event-mouse-motion-state e)
-                                    (sub1 SDL_BUTTON_LEFT))
-                (let-values ([(x y)
-                              (tiled-map-renderer-screen-to-map
-                               map-renderer
-                               (event-mouse-motion-x e)
-                               (event-mouse-motion-y e))])
-                    (character-set-target-x player-character x)
-                    (character-set-target-y player-character y))))
-        (when (eq? (event-type e) 'SDL_KEYDOWN)
-            (let ([sym (SDL_Keysym-sym (event-keysym e))])
-                (cond
-                    [(eq? sym SDLK_ESCAPE) #f]
-                    [(eq? sym SDLK_d)
-                     ;; some debugging
-                     (define mouse-x (cast (malloc _int) _pointer _int*))
-                     (define mouse-y (cast (malloc _int) _pointer _int*))
-                     (SDL_GetMouseState mouse-x mouse-y)
-                     (define mouse-coord-x (ptr-ref mouse-x _int))
-                     (define mouse-coord-y (ptr-ref mouse-y _int))
-                     (let-values ([(x y)
-                                   (tiled-map-renderer-screen-to-map
-                                    map-renderer mouse-coord-x mouse-coord-y)])
-                         (displayln
-                          (list 'mouse-pos mouse-coord-x mouse-coord-y x y)))
-                     (displayln (append (list 'char-pos)
-                                        (call-with-values
-                                         (lambda () (character-get-pos
-                                                     player-character))
-                                         list)))
-                     (displayln (list 'char-target
-                                      (character-get-target-x player-character)
-                                      (character-get-target-y player-character)))
-                     (displayln (list 'sprite-pos
-                                      (sprite-get-x player-sprite)
-                                      (sprite-get-y player-sprite)))
-                     (newline)
-                     ]))))
+                           map-renderer screen-x screen-y)]
+                         [(mob-x) (sprite-get-x mob-sprite)]
+                         [(mob-y) (sprite-get-y mob-sprite)]
+                         [(mob-w) (sprite-get-width mob-sprite)]
+                         [(mob-h) (sprite-get-height mob-sprite)])
+                (if (and (>= screen-x mob-x)
+                         (>= screen-y mob-y)
+                         (<= screen-x (+ mob-x mob-w))
+                         (<= screen-y (+ mob-y mob-h))
+                         (not (character-dead? mob-character)))
+                    (character-set-attack-target player-character mob-character)
+                    (begin
+                        (character-set-attack-target player-character #f)
+                        (character-set-target-x player-character x)
+                        (character-set-target-y player-character y)))))
+        (case (event-type e)
+            [(SDL_MOUSEBUTTONDOWN)
+             (do-click (event-mouse-button-x e) (event-mouse-button-y e))]
+            [(SDL_MOUSEMOTION)
+             (when (bitwise-bit-set? (event-mouse-motion-state e)
+                                     (sub1 SDL_BUTTON_LEFT))
+                 (do-click (event-mouse-motion-x e) (event-mouse-motion-y e)))]
+            [(SDL_KEYDOWN)
+             (let ([sym (SDL_Keysym-sym (event-keysym e))])
+                 (cond
+                     [(eq? sym SDLK_ESCAPE) #f]))]))
 
     (define (update dt)
         (when (zero? (Mix_PlayingMusic))
@@ -274,7 +256,7 @@
     (tiled-map-renderer-set-player-sprite tiled-map-renderer player-sprite)
     (define mob-sprite-path "minotaur.ss")
     (define mob-sprite (make-sprite mob-sprite-path))
-    (sprite-set-x mob-sprite 600)
+    (sprite-set-x mob-sprite 500)
     (sprite-set-y mob-sprite 80)
     (define mob-character (make-character mob-sprite tiled-map-renderer))
     (character-set-attack-target mob-character player-character)
