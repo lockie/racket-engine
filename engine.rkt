@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/function ffi/unsafe sdl "sdl-image.rkt" "sdl-mixer.rkt" "renderer.rkt" "tiled.rkt" "sprite.rkt" "character.rkt")
+(require racket/function ffi/unsafe sdl "sdl-image.rkt" "sdl-mixer.rkt" "sdl-ttf.rkt" "renderer.rkt" "tiled.rkt" "sprite.rkt" "character.rkt")
 
 
 ;; racket-sdl fixups
@@ -72,6 +72,17 @@
     SDL_USEREVENT    = #x8000
     SDL_LASTEVENT    = #xFFFF)))
 
+(define SDL_PIXELFORMAT_RGBA8888 #x16462004)
+(define SDL_TEXTUREACCESS_TARGET 2)
+
+(define-cstruct _SDL_Color
+    ([r _uint8]
+     [g _uint8]
+     [b _uint8]
+     [a _uint8]))
+
+(define-sdl SDL_RenderCopy (_fun _SDL_Renderer _SDL_Texture _SDL_Rect-pointer/null _SDL_Rect-pointer/null -> _int))
+
 
 ;; Helper functions
 
@@ -113,6 +124,7 @@
     (SDL_SetMainReady)
     (SDL_Init (bitwise-ior SDL_INIT_VIDEO SDL_INIT_AUDIO))
     (IMG_Init 'IMG_INIT_PNG)
+    (TTF_Init)
     (Mix_OpenAudio 44100 MIX_DEFAULT_FORMAT MIX_DEFAULT_CHANNELS 4096)
 
     (define window
@@ -171,10 +183,25 @@
 
 
 ;; NOTE : this is not the part of engine
+(require racket/math racket/string)
+
 (define (make-example-game map-renderer player-sprite player-character mob-sprite mob-character)
+    (define window-width 0)
+    (define window-height 0)
+
+    (define font #f)
     (define music #f)
 
+    (define popup-text #f)
+    (define popup #f)
+
+    (define (conf config)
+        (set! window-width (hash-ref config 'window-width 0))
+        (set! window-height (hash-ref config 'window-height 0)))
+
     (define (load renderer)
+        (set! font (TTF_OpenFont "font.ttf" 18))
+        (TTF_SetFontHinting font TTF_HINTING_NONE)
         (set! music (Mix_LoadMUS "music.mp3"))
         (Mix_VolumeMusic 32)
         (sprite-set-layer-toggled player-sprite 'buckler #f)
@@ -194,28 +221,78 @@
         (sprite-set-layer-toggled player-sprite 'steel-armor #f)
         (sprite-set-layer-toggled player-sprite 'wand #f))
 
+    (define (close-text-popup)
+        (when popup
+            (SDL_DestroyTexture popup))
+        (set! popup #f)
+        (set! popup-text #f))
+
+    (define (draw-text-popup sdl-renderer popup-text
+                             [color (make-SDL_Color 255 255 255 255)])
+        (define popup
+            (SDL_CreateTexture
+             sdl-renderer
+             SDL_PIXELFORMAT_RGBA8888
+             SDL_TEXTUREACCESS_TARGET
+             window-width
+             window-height))
+        (SDL_SetRenderTarget sdl-renderer popup)
+        (SDL_SetRenderDrawColor sdl-renderer 0 0 0 128)
+        (SDL_RenderClear sdl-renderer)
+        (define surfaces
+            (map
+             (lambda (text)
+                 (TTF_RenderText_Blended font text color))
+             (string-split popup-text "\n")))
+        (define h (for/sum ([s (in-list surfaces)]) (SDL_Surface-h s)))
+        (define w (apply max (map SDL_Surface-w surfaces)))
+        (define y (exact-round (* 1/2 (- window-height h))))
+        (for ([surface (in-list surfaces)])
+            (define texture (SDL_CreateTextureFromSurface sdl-renderer surface))
+            (SDL_RenderCopy
+             sdl-renderer texture #f
+             (make-SDL_Rect
+              (exact-round (* 1/2 (- window-width w)))
+              y (SDL_Surface-w surface) (SDL_Surface-h surface)))
+            (set! y (+ y (SDL_Surface-h surface)))
+            (SDL_FreeSurface surface)
+            (SDL_DestroyTexture texture))
+        (SDL_SetRenderTarget sdl-renderer #f)
+        (SDL_SetTextureBlendMode popup 'SDL_BLENDMODE_BLEND)
+        popup)
+
     (define (draw renderer)
-        #t)
+        (renderer-render
+         renderer
+         10000
+         (lambda (sdl-renderer)
+             (when popup-text
+                 (unless popup
+                     (set! popup (draw-text-popup sdl-renderer popup-text)))
+                 (SDL_RenderCopy sdl-renderer popup #f #f)))))
 
     (define (event e)
         (define (do-click screen-x screen-y)
-            (let-values ([(x y)
-                          (tiled-map-renderer-screen-to-map
-                           map-renderer screen-x screen-y)]
-                         [(mob-x) (sprite-get-x mob-sprite)]
-                         [(mob-y) (sprite-get-y mob-sprite)]
-                         [(mob-w) (sprite-get-width mob-sprite)]
-                         [(mob-h) (sprite-get-height mob-sprite)])
-                (if (and (>= screen-x mob-x)
-                         (>= screen-y mob-y)
-                         (<= screen-x (+ mob-x mob-w))
-                         (<= screen-y (+ mob-y mob-h))
-                         (not (character-dead? mob-character)))
-                    (character-set-attack-target player-character mob-character)
-                    (begin
-                        (character-set-attack-target player-character #f)
-                        (character-set-target-x player-character x)
-                        (character-set-target-y player-character y)))))
+            (if popup-text
+                (close-text-popup)
+                (let-values ([(x y)
+                              (tiled-map-renderer-screen-to-map
+                               map-renderer screen-x screen-y)]
+                             [(mob-x) (sprite-get-x mob-sprite)]
+                             [(mob-y) (sprite-get-y mob-sprite)]
+                             [(mob-w) (sprite-get-width mob-sprite)]
+                             [(mob-h) (sprite-get-height mob-sprite)])
+                    (if (and (>= screen-x mob-x)
+                             (>= screen-y mob-y)
+                             (<= screen-x (+ mob-x mob-w))
+                             (<= screen-y (+ mob-y mob-h))
+                             (not (character-dead? mob-character)))
+                        (character-set-attack-target
+                         player-character mob-character)
+                        (begin
+                            (character-set-attack-target player-character #f)
+                            (character-set-target-x player-character x)
+                            (character-set-target-y player-character y))))))
         (character-set-attack-target player-character #f)
         (case (event-type e)
             [(SDL_MOUSEBUTTONDOWN)
@@ -227,7 +304,7 @@
             [(SDL_KEYDOWN)
              (let ([sym (SDL_Keysym-sym (event-keysym e))])
                  (cond
-                     [(eq? sym SDLK_ESCAPE) #f]))]))
+                     [(eq? sym SDLK_ESCAPE) (close-text-popup)]))]))
 
     (define (update dt)
         (when (zero? (Mix_PlayingMusic))
@@ -239,6 +316,7 @@
 
     (lambda (msg)
         (case msg
+            [(conf) conf]
             [(load) load]
             [(draw) draw]
             [(event) event]
