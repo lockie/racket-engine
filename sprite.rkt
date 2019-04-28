@@ -144,7 +144,9 @@
                 (cdr (memq current-frame all-frames)))
             (set! current-frame
                 (if (null? remaining-frames)
-                    (first all-frames)
+                    (if (eq? current-stance 'die)
+                        current-frame
+                        (first all-frames))
                     (first remaining-frames)))))
 
     (define (get-width)
@@ -191,6 +193,9 @@
     (define (player?)
         player)
 
+    (define (stance-finished?)
+        (= current-frame (last (hash-ref stances current-stance))))
+
     (define (quit)
         (hash-for-each
          layers
@@ -216,6 +221,7 @@
             [(get-layer-toggled) get-layer-toggled]
             [(set-layer-toggled) set-layer-toggled]
             [(player?) player?]
+            [(stance-finished?) stance-finished?]
             [(quit) quit]
             [else (const #t)])))
 
@@ -257,3 +263,6 @@
 
 (define (sprite-player? s)
     ((s 'player?)))
+
+(define (sprite-stance-finished? s)
+    ((s 'stance-finished?)))
