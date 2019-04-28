@@ -309,8 +309,9 @@
     (define (quit)
         (sequence-for-each
          (lambda (tile)
-             (define texture (car tile))
-             (SDL_DestroyTexture texture))
+             (when tile
+                 (define texture (car tile))
+                 (SDL_DestroyTexture texture)))
          tileset-map))
 
     (lambda (msg)
