@@ -183,9 +183,22 @@
 
 
 ;; NOTE : this is not the part of engine
-(require racket/math racket/string)
+(require racket/math racket/string racket/bool racket/list racket/path)
 
-(define (make-example-game tiled-map map-renderer player-sprite player-character mob-sprite mob-character)
+(define (position-character sprite character tiled-object map-renderer)
+    ;; TODO : this arithmetic is correct for player, but slightly off for mobs
+    (sprite-set-x
+     sprite
+     (- (tiled-object-x tiled-object)
+        (tiled-map-renderer-get-tile-width map-renderer)))
+    (sprite-set-y
+     sprite
+     (- (tiled-object-y tiled-object)
+        (* 2 (tiled-map-renderer-get-tile-height map-renderer))
+        (character-get-sprite-offset-y character)))
+    (character-reset-target character))
+
+(define (make-example-game tiled-map map-renderer player-sprite player-character mob-sprites mob-characters mob-objects)
     (define window-width 0)
     (define window-height 0)
 
@@ -227,19 +240,13 @@
                      "player"
                      (hash-ref (tiled-object-properties object) 'type "")))
                 (tiled-map-objects tiled-map))])
-            (sprite-set-x
-             player-sprite
-             (- (tiled-object-x player-object)
-                (tiled-map-renderer-get-tile-width map-renderer)))
-            (sprite-set-y
-             player-sprite
-             (- (tiled-object-y player-object)
-                (* 2 (tiled-map-renderer-get-tile-height map-renderer))
-                (character-get-sprite-offset-y player-character)))
-            (let-values ([(x y) (character-get-pos player-character)])
-                (character-set-target-x player-character x)
-                (character-set-target-y player-character y))))
-
+            (position-character
+             player-sprite player-character player-object map-renderer))
+        (for/list ([object mob-objects]
+                   [mob-sprite mob-sprites]
+                   [mob-character mob-characters])
+            (position-character
+             mob-sprite mob-character object map-renderer)))
 
     (define (close-text-popup)
         (when popup
@@ -292,23 +299,31 @@
                  (SDL_RenderCopy sdl-renderer popup #f #f)))))
 
     (define (event e)
+        (define (mob-point mob-character screen-x screen-y)
+            (let* ([mob-sprite (character-get-sprite mob-character)]
+                   [mob-x (sprite-get-x mob-sprite)]
+                   [mob-y (sprite-get-y mob-sprite)]
+                   [mob-w (sprite-get-width mob-sprite)]
+                   [mob-h (sprite-get-height mob-sprite)])
+                (and (not (character-dead? mob-character))
+                     (>= screen-x mob-x)
+                     (>= screen-y mob-y)
+                     (<= screen-x (+ mob-x mob-w))
+                     (<= screen-y (+ mob-y mob-h)))))
         (define (do-click screen-x screen-y)
             (if popup-text
                 (close-text-popup)
                 (let-values ([(x y)
                               (tiled-map-renderer-screen-to-map
                                map-renderer screen-x screen-y)]
-                             [(mob-x) (sprite-get-x mob-sprite)]
-                             [(mob-y) (sprite-get-y mob-sprite)]
-                             [(mob-w) (sprite-get-width mob-sprite)]
-                             [(mob-h) (sprite-get-height mob-sprite)])
-                    (if (and (>= screen-x mob-x)
-                             (>= screen-y mob-y)
-                             (<= screen-x (+ mob-x mob-w))
-                             (<= screen-y (+ mob-y mob-h))
-                             (not (character-dead? mob-character)))
+                             [(pointed-mob)
+                              (findf
+                               (lambda (mob-character)
+                                   (mob-point mob-character screen-x screen-y))
+                               mob-characters)])
+                    (if pointed-mob
                         (character-set-attack-target
-                         player-character mob-character)
+                         player-character pointed-mob)
                         (begin
                             (character-set-attack-target player-character #f)
                             (character-set-target-x player-character x)
@@ -353,23 +368,34 @@
     (define player-sprite (make-sprite player-sprite-path #:player #t))
     (define player-character (make-character player-sprite tiled-map-renderer #:player #t))
     (tiled-map-renderer-set-player-sprite tiled-map-renderer player-sprite)
-    (define mob-sprite-path "minotaur.ss")
-    (define mob-sprite (make-sprite mob-sprite-path))
-    (sprite-set-x mob-sprite 500)
-    (sprite-set-y mob-sprite 80)
-    (define mob-character (make-character mob-sprite tiled-map-renderer))
-    (character-set-attack-target mob-character player-character)
-    (define game (make-example-game tiled-map tiled-map-renderer player-sprite player-character mob-sprite mob-character))
+    (define mob-objects
+        (filter
+         (lambda (object)
+             (string=?
+              "mob"
+              (hash-ref (tiled-object-properties object) 'type "")))
+         (tiled-map-objects tiled-map)))
+    (define mob-sprites
+        (for/list ([object mob-objects])
+            (make-sprite
+             (build-path
+              (path-only (tiled-map-file-path tiled-map))
+              (hash-ref (tiled-object-properties object) 'sprite)))))
+    (define mob-characters
+        (for/list ([sprite mob-sprites])
+            (define mob-character
+                (make-character sprite tiled-map-renderer))
+            (character-set-attack-target mob-character player-character)
+            mob-character))
+    (define game (make-example-game tiled-map tiled-map-renderer player-sprite player-character mob-sprites mob-characters mob-objects))
     (thread
      (lambda ()
          (game-thread
-          (list
-           tiled-map-renderer
-           player-sprite
-           player-character
-           game
-           mob-sprite
-           mob-character
-           )))))
-
-(thread-wait (run-game))
+          (append
+           (list
+            tiled-map-renderer
+            player-sprite
+            player-character)
+           mob-sprites
+           mob-characters
+           (list game))))))

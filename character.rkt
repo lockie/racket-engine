@@ -82,9 +82,7 @@
              (-
               (sprite-get-height sprite)
               (* (tiled-map-renderer-get-tile-height tiled-map) 3/2))))
-        (let-values ([(x y) (get-pos)])
-            (set! target-x x)
-            (set! target-y y)))
+        (reset-target))
 
     (define (approx-equal? x y)
         (< (abs (- x y)) 2))
@@ -240,6 +238,12 @@
     (define (get-sprite)
         sprite)
 
+    (define (get-sprite-offset-x)
+        sprite-offset-x)
+
+    (define (get-sprite-offset-y)
+        sprite-offset-y)
+
     (define (get-pos)
         (tiled-map-renderer-screen-to-map
          tiled-map
@@ -258,6 +262,11 @@
 
     (define (set-target-y y)
         (unless (dead?)
+            (set! target-y y)))
+
+    (define (reset-target)
+        (let-values ([(x y) (get-pos)])
+            (set! target-x x)
             (set! target-y y)))
 
     (define (center-map)
@@ -337,11 +346,14 @@
             [(update) update]
             [(switch-stance) switch-stance]
             [(get-sprite) get-sprite]
+            [(get-sprite-offset-x) get-sprite-offset-x]
+            [(get-sprite-offset-y) get-sprite-offset-y]
             [(get-pos) get-pos]
             [(get-target-x) get-target-x]
             [(get-target-y) get-target-y]
             [(set-target-x) set-target-x]
             [(set-target-y) set-target-y]
+            [(reset-target) reset-target]
             [(center-map) center-map]
             [(set-attack-target) set-attack-target]
             [(get-health) get-health]
@@ -357,6 +369,12 @@
 (define (character-get-sprite c)
     ((c 'get-sprite)))
 
+(define (character-get-sprite-offset-x c)
+    ((c 'get-sprite-offset-x)))
+
+(define (character-get-sprite-offset-y c)
+    ((c 'get-sprite-offset-x)))
+
 (define (character-get-pos c)
     ((c 'get-pos)))
 
@@ -371,6 +389,9 @@
 
 (define (character-set-target-y c y)
     ((c 'set-target-y) y))
+
+(define (character-reset-target c)
+    ((c 'reset-target)))
 
 (define (character-center-map c)
     ((c 'center-map)))
