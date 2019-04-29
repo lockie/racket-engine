@@ -278,7 +278,9 @@
             (map
              (lambda (text)
                  (TTF_RenderText_Blended font text color))
-             (string-split popup-text "\n")))
+             (string-split
+              (string-append popup-text "\n \n(press any key)")
+              "\n")))
         (define h (for/sum ([s (in-list surfaces)]) (SDL_Surface-h s)))
         (define w (apply max (map SDL_Surface-w surfaces)))
         (define y (exact-round (* 1/2 (- window-height h))))
@@ -383,8 +385,7 @@
                      (<= screen-x (+ mob-x mob-w))
                      (<= screen-y (+ mob-y mob-h)))))
         (define (do-click screen-x screen-y)
-            (if popup-text
-                (close-text-popup)
+            (unless popup-text
                 (let-values ([(x y)
                               (tiled-map-renderer-screen-to-map
                                map-renderer screen-x screen-y)]
