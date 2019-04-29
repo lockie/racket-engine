@@ -208,6 +208,10 @@
     (define popup-text #f)
     (define popup #f)
 
+    (define orb-texture #f)
+    (define orb-fill-texture #f)
+    (define orb-health-texture #f)
+
     (define (conf config)
         (set! window-width (hash-ref config 'window-width 0))
         (set! window-height (hash-ref config 'window-height 0)))
@@ -217,6 +221,10 @@
         (TTF_SetFontHinting font TTF_HINTING_NONE)
         (set! music (Mix_LoadMUS "music.mp3"))
         (Mix_VolumeMusic 32)
+        (set! orb-texture (IMG_LoadTexture renderer "orb.png"))
+        (set! orb-fill-texture (IMG_LoadTexture renderer "orb-fill.png"))
+        (set! orb-health-texture (IMG_LoadTexture renderer "orb-health.png"))
+        (SDL_SetTextureBlendMode orb-health-texture 'SDL_BLENDMODE_ADD)
         (sprite-set-layer-toggled player-sprite 'buckler #f)
         ;; (sprite-set-layer-toggled player-sprite 'clothes #f)
         (sprite-set-layer-toggled player-sprite 'dagger #f)
@@ -289,6 +297,36 @@
         popup)
 
     (define (draw renderer)
+        (renderer-render
+         renderer
+         9000
+         (lambda (sdl-renderer)
+             (define orb (SDL_CreateTexture
+                          sdl-renderer
+                          SDL_PIXELFORMAT_RGBA8888
+                          SDL_TEXTUREACCESS_TARGET
+                          105 105))
+             (SDL_SetRenderTarget sdl-renderer orb)
+             (define h
+                 (exact-round
+                  (* 105
+                     (/ (character-get-health player-character)
+                        (character-get-max-health player-character)))))
+             (when (negative? h)
+                 (set! h 0))
+             (SDL_RenderCopy sdl-renderer orb-fill-texture #f #f)
+             (SDL_RenderCopy
+              sdl-renderer orb-health-texture #f
+              (make-SDL_Rect 0 (- 105 h) 105 105))
+             (SDL_SetRenderTarget sdl-renderer #f)
+             (SDL_RenderCopy
+              sdl-renderer orb-texture #f
+              (make-SDL_Rect 343 485 115 115))
+             (SDL_SetTextureBlendMode orb 'SDL_BLENDMODE_BLEND)
+             (SDL_RenderCopy
+              sdl-renderer orb #f
+              (make-SDL_Rect 348 490 105 105))
+             (SDL_DestroyTexture orb)))
         (define target-character (character-get-attack-target player-character))
         (when target-character
             (renderer-render
