@@ -196,7 +196,8 @@
              (define r (string->number (substring background 1 3) 16))
              (define g (string->number (substring background 3 5) 16))
              (define b (string->number (substring background 5 7) 16))
-             (SDL_SetRenderDrawColor sdl-renderer r g b 255)))
+             (SDL_SetRenderDrawColor sdl-renderer r g b 255)
+             (SDL_RenderClear sdl-renderer)))
         (define player-x (sprite-get-x player-sprite))
         (define player-y (sprite-get-y player-sprite))
         (for-each
