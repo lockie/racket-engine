@@ -10,11 +10,14 @@
 (define-struct tiled-map
     (file-path format-version tiled-version orientation render-order width height
                tile-width tile-height stagger-axis stagger-index
-               background-color tilesets layers) #:transparent)
+               background-color tilesets layers objects) #:transparent)
 
 (define-struct tiled-tileset
     (name first-id tile-width tile-height tile-count columns
           spacing margin image-source) #:transparent)
+
+(define-struct tiled-object
+    (id x y properties text) #:transparent)
 
 (define (parse-tiled-map path)
     (define (parse-tileset tag)
@@ -29,6 +32,13 @@
          (sxml:num-attr tag 'margin)
          (sxml:attr ((if-car-sxpath '(image)) tag) 'source)))
     (define (symbolize val) (if val (string->symbol val) #f))
+    (define (tag-properties tag)
+        (make-immutable-hasheq
+         (map
+          (lambda (property-tag)
+              (cons (symbolize (sxml:attr property-tag 'name))
+                    (sxml:attr property-tag 'value)))
+          ((sxpath '(properties property)) tag))))
     (define (parse-layer tag order)
         (define (csv-layer-parser data)
             (let ([array-data (rest (csv->list data))])
@@ -48,15 +58,17 @@
              (sxml:attr tag 'name)
              width
              height
-             (make-immutable-hasheq
-              (map
-               (lambda (property-tag)
-                   (cons (symbolize (sxml:attr property-tag 'name))
-                         (sxml:attr property-tag 'value)))
-               ((sxpath '(properties property)) tag)))
+             (tag-properties tag)
              (case (sxml:attr data 'encoding)
                  [("csv") (csv-layer-parser (sxml:text data))]
                  [else #f]))))
+    (define (parse-object tag)
+        (make-tiled-object
+         (sxml:num-attr tag 'id)
+         (sxml:num-attr tag 'x)
+         (sxml:num-attr tag 'y)
+         (tag-properties tag)
+         ((if-car-sxpath '(text *text*)) tag)))
     (call-with-input-file path
         (lambda (port)
             (define document (ssax:xml->sxml port '()))
@@ -82,7 +94,8 @@
                   (lambda (layer-tag)
                       (set! order (add1 order))
                       (parse-layer layer-tag order)))
-              ((sxpath '(map layer)) document))))))
+              ((sxpath '(map layer)) document))
+             (map parse-object ((sxpath '(map // object)) document))))))
 
 (define (make-tiled-map-renderer tiled-map)
     (define window-width 0)
