@@ -113,8 +113,8 @@
     (define config
         (make-hasheq
          '(
-           (window-width . 600)
-           (window-height . 400)
+           (window-width . 800)
+           (window-height . 600)
            (window-title . "Generic game")
            (debug . #f)
            )))
@@ -135,7 +135,7 @@
          (config-ref 'window-height)
          0))
     (define sdl-renderer (SDL_CreateRenderer window -1 0))
-    (SDL_SetRenderDrawColor sdl-renderer 0 0 0 255)
+    (SDL_SetRenderDrawBlendMode sdl-renderer 'SDL_BLENDMODE_BLEND)
     (define renderer (make-renderer sdl-renderer))
 
     (define tick-period (/ 1.0 (SDL_GetPerformanceFrequency)))
@@ -289,11 +289,32 @@
         popup)
 
     (define (draw renderer)
-        (renderer-render
-         renderer
-         10000
-         (lambda (sdl-renderer)
-             (when popup-text
+        (define target-character (character-get-attack-target player-character))
+        (when target-character
+            (renderer-render
+             renderer
+             9000
+             (lambda (sdl-renderer)
+                 (SDL_SetRenderDrawColor sdl-renderer 0 0 0 192)
+                 (SDL_RenderFillRect
+                  sdl-renderer
+                  (make-SDL_Rect 320 10 160 25))
+                 (SDL_SetRenderDrawColor sdl-renderer 86 12 6 255)
+                 (SDL_RenderFillRect
+                  sdl-renderer
+                  (make-SDL_Rect
+                   320 10
+                   (exact-round
+                    (/
+                     (* 160
+                        (character-get-health target-character))
+                     (character-get-max-health target-character)))
+                   25)))))
+        (when popup-text
+            (renderer-render
+             renderer
+             10000
+             (lambda (sdl-renderer)
                  (unless popup
                      (set! popup (draw-text-popup sdl-renderer popup-text)))
                  (SDL_RenderCopy sdl-renderer popup #f #f)))))

@@ -293,6 +293,9 @@
                 y-diff)))
         (values x-diff y-diff))
 
+    (define (get-attack-target)
+        attack-target)
+
     (define (set-attack-target char)
         (set! attack-target char))
 
@@ -323,6 +326,8 @@
                  attack-target
                  (- (character-get-health attack-target)
                     damage))
+                (when (character-dead? attack-target)
+                    (set! attack-target #f))
                 (sprite-set-stance sprite 'idle))))
 
     (define (get-health)
@@ -385,6 +390,7 @@
             [(set-target-y) set-target-y]
             [(reset-target) reset-target]
             [(center-map) center-map]
+            [(get-attack-target) get-attack-target]
             [(set-attack-target) set-attack-target]
             [(get-health) get-health]
             [(set-health) set-health]
@@ -434,6 +440,9 @@
 
 (define (character-center-map c)
     ((c 'center-map)))
+
+(define (character-get-attack-target c)
+    ((c 'get-attack-target)))
 
 (define (character-set-attack-target c t)
     ((c 'set-attack-target) t))
