@@ -188,6 +188,15 @@
          "true"))
 
     (define (draw renderer)
+        (renderer-render
+         renderer
+         0
+         (lambda (sdl-renderer)
+             (define background (tiled-map-background-color tiled-map))
+             (define r (string->number (substring background 1 3) 16))
+             (define g (string->number (substring background 3 5) 16))
+             (define b (string->number (substring background 5 7) 16))
+             (SDL_SetRenderDrawColor sdl-renderer r g b 255)))
         (define player-x (sprite-get-x player-sprite))
         (define player-y (sprite-get-y player-sprite))
         (for-each
@@ -206,28 +215,28 @@
              (for-each-tile
               layer
               (lambda (row col tile-index)
-                  (let* ([tile (vector-ref tileset-map tile-index)]
-                         [texture (car tile)]
-                         [srcrect (cdr tile)]
-                         [x (+ transform-x (pos-x row col))]
-                         [y (+ transform-y (pos-y row col))]
+                  (let* ([x (exact-round (+ transform-x (pos-x row col)))]
+                         [y (exact-round (+ transform-y (pos-y row col)))]
                          [visible? (and (> x (- tile-width))
                                         (> y (- tile-height))
                                         (< x window-width)
                                         (< y window-height))])
                       (when visible?
-                          (define opacity (if (obscures-player? x y) 100 255))
-                          (renderer-render
-                           renderer
-                           layer-order
-                           (lambda (sdl-renderer)
-                               (SDL_SetTextureAlphaMod texture opacity)
-                               (SDL_RenderCopy
-                                sdl-renderer texture
-                                srcrect
-                                (make-SDL_Rect
-                                 (exact-round x) (exact-round y) tile-width tile-height))))
-                          (void)))))
+                          (let* ([tile (vector-ref tileset-map tile-index)]
+                                 [texture (car tile)]
+                                 [srcrect (cdr tile)])
+                              (define opacity (if (obscures-player? x y) 100 255))
+                              (renderer-render
+                               renderer
+                               layer-order
+                               (lambda (sdl-renderer)
+                                   (SDL_SetTextureAlphaMod texture opacity)
+                                   (SDL_RenderCopy
+                                    sdl-renderer texture
+                                    srcrect
+                                    (make-SDL_Rect
+                                     x y tile-width tile-height))))
+                              (void))))))
              (when debug?
                  (for-each-tile
                   layer

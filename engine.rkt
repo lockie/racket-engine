@@ -173,7 +173,6 @@
                               (* tick-period (- current-tick last-tick))))
                  components)
                 (for-each (lambda (c) ((c 'draw) renderer)) components)
-                (SDL_SetRenderDrawColor sdl-renderer 0 0 0 255)
                 (SDL_RenderClear sdl-renderer)
                 (renderer-do-draw renderer)
                 (SDL_RenderPresent sdl-renderer)
