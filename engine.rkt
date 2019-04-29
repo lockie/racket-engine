@@ -417,11 +417,21 @@
               (path-only (tiled-map-file-path tiled-map))
               (hash-ref (tiled-object-properties object) 'sprite)))))
     (define mob-characters
-        (for/list ([sprite mob-sprites])
-            (define mob-character
+        (for/list ([object mob-objects]
+                   [sprite mob-sprites])
+            (define char
                 (make-character sprite tiled-map-renderer))
-            (character-set-attack-target mob-character player-character)
-            mob-character))
+            (define (get-prop prop default)
+                (string->number
+                 (hash-ref (tiled-object-properties object) prop default)))
+            (character-set-speed char (get-prop 'speed "200"))
+            (character-set-defence char (get-prop 'defence "10"))
+            (character-set-offence char (get-prop 'offence "10"))
+            (character-set-crit-chance char (get-prop 'crit-chance "10"))
+            (character-set-health! char (get-prop 'health "100"))
+            (character-set-max-health char (get-prop 'max-health "100"))
+            (character-set-attack-target char player-character)
+            char))
     (define game (make-example-game tiled-map tiled-map-renderer player-sprite player-character mob-sprites mob-characters mob-objects text-objects))
     (thread
      (lambda ()

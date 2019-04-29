@@ -7,11 +7,12 @@
 
 
 (define (make-character sprite tiled-map #:player [player #f])
-    (define speed 200)  ;; TODO : unhardcode
+    (define speed 200)
     (define defence 10)
     (define offence 10)
-    (define crit-chance 1)
+    (define crit-chance 5)
     (define health 100)
+    (define max-health 100)
 
     (define screen-width 0)
     (define screen-height 0)
@@ -300,7 +301,7 @@
             (for/sum ([i (in-range n)])
                 (random (add1 s))))
         (define (roll-damage offence-value)
-            (define range (/ offence-value 2))
+            (define range (exact-round (/ offence-value 2)))
             (define roll1 (roll-dice 1 range))
             (define roll2 (roll-dice 1 range))
             (define roll3 (roll-dice 1 range))
@@ -332,14 +333,41 @@
             (switch-stance 'hit))
         (set! health h))
 
+    (define (set-health! h)
+        (set! health h))
+
+    (define (get-max-health)
+        max-health)
+
+    (define (set-max-health h)
+        (set! max-health h))
+
     (define (dead?)
         (not (positive? health)))
 
     (define (get-defence)
         defence)
 
+    (define (set-defence d)
+        (set! defence d))
+
     (define (get-offence)
         offence)
+
+    (define (set-offence o)
+        (set! offence o))
+
+    (define (get-speed)
+        speed)
+
+    (define (set-speed s)
+        (set! speed s))
+
+    (define (get-crit-chance)
+        crit-chance)
+
+    (define (set-crit-chance c)
+        (set! crit-chance c))
 
     (lambda (msg)
         (case msg
@@ -360,9 +388,18 @@
             [(set-attack-target) set-attack-target]
             [(get-health) get-health]
             [(set-health) set-health]
+            [(set-health!) set-health!]
+            [(get-max-health) get-max-health]
+            [(set-max-health) set-max-health]
             [(dead?) dead?]
             [(get-defence) get-defence]
+            [(set-defence) set-defence]
             [(get-offence) get-offence]
+            [(set-offence) set-offence]
+            [(get-speed) get-speed]
+            [(set-speed) set-speed]
+            [(get-crit-chance) get-crit-chance]
+            [(set-crit-chance) set-crit-chance]
             [else (const #t)])))
 
 (define (character-switch-stance c s)
@@ -407,11 +444,38 @@
 (define (character-set-health c h)
     ((c 'set-health) h))
 
+(define (character-set-health! c h)
+    ((c 'set-health!) h))
+
+(define (character-get-max-health c)
+    ((c 'get-max-health)))
+
+(define (character-set-max-health c h)
+    ((c 'set-max-health) h))
+
 (define (character-dead? c)
     ((c 'dead?)))
 
 (define (character-get-defence c)
     ((c 'get-defence)))
 
+(define (character-set-defence c d)
+    ((c 'set-defence) d))
+
 (define (character-get-offence c)
     ((c 'get-offence)))
+
+(define (character-set-offence c o)
+    ((c 'set-offence) o))
+
+(define (character-get-speed c)
+    ((c 'get-speed)))
+
+(define (character-set-speed c s)
+    ((c 'set-speed) s))
+
+(define (character-get-crit-chance c)
+    ((c 'get-crit-chance)))
+
+(define (character-set-crit-chance c chance)
+    ((c 'set-crit-chance) chance))
