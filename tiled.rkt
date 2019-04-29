@@ -17,7 +17,7 @@
           spacing margin image-source) #:transparent)
 
 (define-struct tiled-object
-    (id x y properties text) #:transparent)
+    (id x y width height properties text) #:transparent)
 
 (define (parse-tiled-map path)
     (define (parse-tileset tag)
@@ -67,6 +67,8 @@
          (sxml:num-attr tag 'id)
          (sxml:num-attr tag 'x)
          (sxml:num-attr tag 'y)
+         (sxml:num-attr tag 'width)
+         (sxml:num-attr tag 'height)
          (tag-properties tag)
          ((if-car-sxpath '(text *text*)) tag)))
     (call-with-input-file path

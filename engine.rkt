@@ -198,7 +198,7 @@
         (character-get-sprite-offset-y character)))
     (character-reset-target character))
 
-(define (make-example-game tiled-map map-renderer player-sprite player-character mob-sprites mob-characters mob-objects)
+(define (make-example-game tiled-map map-renderer player-sprite player-character mob-sprites mob-characters mob-objects text-objects)
     (define window-width 0)
     (define window-height 0)
 
@@ -299,6 +299,19 @@
                  (SDL_RenderCopy sdl-renderer popup #f #f)))))
 
     (define (event e)
+        (define (text-point text-object screen-x screen-y)
+            (let ([object-x (+ (tiled-object-x text-object)
+                               (tiled-map-renderer-get-tx map-renderer))]
+                  [object-y (+ (tiled-object-y text-object)
+                               (tiled-map-renderer-get-ty map-renderer))])
+                (and (>= screen-x object-x)
+                     (>= screen-y object-y)
+                     (<= screen-x
+                         (+ object-x
+                            (tiled-object-width text-object)))
+                     (<= screen-y
+                         (+ object-y
+                            (tiled-object-height text-object))))))
         (define (mob-point mob-character screen-x screen-y)
             (let* ([mob-sprite (character-get-sprite mob-character)]
                    [mob-x (sprite-get-x mob-sprite)]
@@ -316,18 +329,26 @@
                 (let-values ([(x y)
                               (tiled-map-renderer-screen-to-map
                                map-renderer screen-x screen-y)]
+                             [(pointed-text)
+                              (findf
+                               (lambda (text-object)
+                                   (text-point text-object screen-x screen-y))
+                               text-objects)]
                              [(pointed-mob)
                               (findf
                                (lambda (mob-character)
                                    (mob-point mob-character screen-x screen-y))
                                mob-characters)])
-                    (if pointed-mob
-                        (character-set-attack-target
-                         player-character pointed-mob)
-                        (begin
-                            (character-set-attack-target player-character #f)
-                            (character-set-target-x player-character x)
-                            (character-set-target-y player-character y))))))
+                    (cond
+                        [pointed-mob
+                         (character-set-attack-target
+                          player-character pointed-mob)]
+                        [pointed-text
+                         (set! popup-text (tiled-object-text pointed-text))]
+                        [else
+                         (character-set-attack-target player-character #f)
+                         (character-set-target-x player-character x)
+                         (character-set-target-y player-character y)]))))
         (character-set-attack-target player-character #f)
         (case (event-type e)
             [(SDL_MOUSEBUTTONDOWN)
@@ -337,9 +358,7 @@
                                      (sub1 SDL_BUTTON_LEFT))
                  (do-click (event-mouse-motion-x e) (event-mouse-motion-y e)))]
             [(SDL_KEYDOWN)
-             (let ([sym (SDL_Keysym-sym (event-keysym e))])
-                 (cond
-                     [(eq? sym SDLK_ESCAPE) (close-text-popup)]))]))
+             (close-text-popup)]))
 
     (define (update dt)
         (when (zero? (Mix_PlayingMusic))
@@ -368,6 +387,13 @@
     (define player-sprite (make-sprite player-sprite-path #:player #t))
     (define player-character (make-character player-sprite tiled-map-renderer #:player #t))
     (tiled-map-renderer-set-player-sprite tiled-map-renderer player-sprite)
+    (define text-objects
+        (filter
+         (lambda (object)
+             (string=?
+              "text"
+              (hash-ref (tiled-object-properties object) 'type "")))
+         (tiled-map-objects tiled-map)))
     (define mob-objects
         (filter
          (lambda (object)
@@ -387,7 +413,7 @@
                 (make-character sprite tiled-map-renderer))
             (character-set-attack-target mob-character player-character)
             mob-character))
-    (define game (make-example-game tiled-map tiled-map-renderer player-sprite player-character mob-sprites mob-characters mob-objects))
+    (define game (make-example-game tiled-map tiled-map-renderer player-sprite player-character mob-sprites mob-characters mob-objects text-objects))
     (thread
      (lambda ()
          (game-thread
