@@ -224,14 +224,15 @@
                              (switch-stance 'idle))
                          (sprite-set-x sprite (- x sprite-offset-x))
                          (sprite-set-y sprite (- y sprite-offset-y))
-                         (when (and attack-target
-                                    (not (character-dead? attack-target)))
+                         (if (and attack-target
+                                  (not (character-dead? attack-target)))
                              (let-values ([(attack-target-x attack-target-y)
                                            (character-get-pos attack-target)]
                                           [(x y) (get-pos)])
                                  (when (and (< (abs (- x attack-target-x)) 2)
                                             (< (abs (- y attack-target-y)) 2))
-                                     (do-attack)))))
+                                     (do-attack)))
+                             (switch-stance 'idle)))
                      (move dt)))]))
 
 
