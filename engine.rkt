@@ -431,7 +431,18 @@
             (sprite-set-y
              mob-sprite
              (+ (sprite-get-y mob-sprite)
-                y-diff))))
+                y-diff)))
+        (let-values ([(player-x player-y)
+                      (character-get-pos player-character)])
+            (for/list ([mob-character mob-characters])
+                (let-values ([(mob-x mob-y) (character-get-pos mob-character)])
+                    (unless (character-get-attack-target mob-character)
+                        (when (< (sqrt (+ (sqr (- mob-x player-x))
+                                          (sqr (* 0.5 (- mob-y player-y)))))
+                                 6)
+                            (character-set-attack-target
+                             mob-character player-character)))))))
+
 
     (define (quit)
         (Mix_FreeMusic music)
@@ -489,7 +500,6 @@
             (character-set-crit-chance char (get-prop 'crit-chance "10"))
             (character-set-health! char (get-prop 'health "100"))
             (character-set-max-health char (get-prop 'max-health "100"))
-            (character-set-attack-target char player-character)
             char))
     (define game (make-example-game tiled-map tiled-map-renderer player-sprite player-character mob-sprites mob-characters mob-objects text-objects))
     (thread
