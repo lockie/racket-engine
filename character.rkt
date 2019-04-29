@@ -327,8 +327,8 @@
                  (- (character-get-health attack-target)
                     damage))
                 (when (character-dead? attack-target)
-                    (set! attack-target #f))
-                (sprite-set-stance sprite 'idle))))
+                    (set! attack-target #f)))
+            (sprite-set-stance sprite 'idle)))
 
     (define (get-health)
         health)
