@@ -185,7 +185,7 @@
 ;; NOTE : this is not the part of engine
 (require racket/math racket/string)
 
-(define (make-example-game map-renderer player-sprite player-character mob-sprite mob-character)
+(define (make-example-game tiled-map map-renderer player-sprite player-character mob-sprite mob-character)
     (define window-width 0)
     (define window-height 0)
 
@@ -219,7 +219,27 @@
         (sprite-set-layer-toggled player-sprite 'slingshot #f)
         (sprite-set-layer-toggled player-sprite 'staff #f)
         (sprite-set-layer-toggled player-sprite 'steel-armor #f)
-        (sprite-set-layer-toggled player-sprite 'wand #f))
+        (sprite-set-layer-toggled player-sprite 'wand #f)
+        (let ([player-object
+               (findf
+                (lambda (object)
+                    (string=?
+                     "player"
+                     (hash-ref (tiled-object-properties object) 'type "")))
+                (tiled-map-objects tiled-map))])
+            (sprite-set-x
+             player-sprite
+             (- (tiled-object-x player-object)
+                (tiled-map-renderer-get-tile-width map-renderer)))
+            (sprite-set-y
+             player-sprite
+             (- (tiled-object-y player-object)
+                (* 2 (tiled-map-renderer-get-tile-height map-renderer))
+                (character-get-sprite-offset-y player-character)))
+            (let-values ([(x y) (character-get-pos player-character)])
+                (character-set-target-x player-character x)
+                (character-set-target-y player-character y))))
+
 
     (define (close-text-popup)
         (when popup
@@ -327,10 +347,9 @@
 
 (define (run-game)
     (define map-file "map.tmx")
-    (define tiled-map-renderer
-        (make-tiled-map-renderer
-         (parse-tiled-map map-file)))
     (define player-sprite-path "heroine.ss")
+    (define tiled-map (parse-tiled-map map-file))
+    (define tiled-map-renderer (make-tiled-map-renderer tiled-map))
     (define player-sprite (make-sprite player-sprite-path #:player #t))
     (define player-character (make-character player-sprite tiled-map-renderer #:player #t))
     (tiled-map-renderer-set-player-sprite tiled-map-renderer player-sprite)
@@ -340,15 +359,15 @@
     (sprite-set-y mob-sprite 80)
     (define mob-character (make-character mob-sprite tiled-map-renderer))
     (character-set-attack-target mob-character player-character)
-    (define game (make-example-game tiled-map-renderer player-sprite player-character mob-sprite mob-character))
+    (define game (make-example-game tiled-map tiled-map-renderer player-sprite player-character mob-sprite mob-character))
     (thread
      (lambda ()
          (game-thread
           (list
            tiled-map-renderer
            player-sprite
-           game
            player-character
+           game
            mob-sprite
            mob-character
            )))))
