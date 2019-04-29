@@ -217,7 +217,12 @@
                  (if (and (approx-equal? (sprite-with-offset-x) x)
                           (approx-equal? (sprite-with-offset-y) y))
                      (begin
-                         (when (eq? (sprite-get-stance sprite) 'move)
+                         (when (or
+                                (eq? (sprite-get-stance sprite) 'move)
+                                (and
+                                 (eq? (sprite-get-stance sprite) 'swing)
+                                 attack-target
+                                 (character-dead? attack-target)))
                              (switch-stance 'idle))
                          (sprite-set-x sprite (- x sprite-offset-x))
                          (sprite-set-y sprite (- y sprite-offset-y))
