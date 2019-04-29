@@ -288,7 +288,8 @@
             (sprite-set-y
              sprite
              (+ (sprite-get-y sprite)
-                y-diff))))
+                y-diff)))
+        (values x-diff y-diff))
 
     (define (set-attack-target char)
         (set! attack-target char))

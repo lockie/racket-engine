@@ -363,7 +363,16 @@
     (define (update dt)
         (when (zero? (Mix_PlayingMusic))
             (Mix_PlayMusic music -1))
-        (character-center-map player-character))
+        (define-values (x-diff y-diff) (character-center-map player-character))
+        (for/list ([mob-sprite mob-sprites])
+            (sprite-set-x
+             mob-sprite
+             (+ (sprite-get-x mob-sprite)
+                x-diff))
+            (sprite-set-y
+             mob-sprite
+             (+ (sprite-get-y mob-sprite)
+                y-diff))))
 
     (define (quit)
         (Mix_FreeMusic music)
