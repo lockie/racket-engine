@@ -312,7 +312,8 @@
         (character-center-map player-character))
 
     (define (quit)
-        (Mix_FreeMusic music))
+        (Mix_FreeMusic music)
+        (TTF_CloseFont font))
 
     (lambda (msg)
         (case msg
