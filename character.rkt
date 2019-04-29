@@ -71,7 +71,7 @@
         (set! screen-height (hash-ref config 'window-height 0)))
 
     (define (load renderer)
-        (set! hit-sound (Mix_LoadWAV "hit15.ogg"))
+        (set! hit-sound (Mix_LoadWAV "assets/sounds/hit15.ogg"))
         ;; XXX these are somewhat hardcoded formulas for Flare character sprites
         (set! sprite-offset-x
             (exact-floor
