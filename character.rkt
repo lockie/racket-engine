@@ -313,7 +313,7 @@
         (when (sprite-stance-finished? sprite)
             ;; do actual attack
             (define attack-connected?
-                (> (+ offence
+                (> (+ (max 0 (- offence (character-get-defence attack-target)))
                       (* 75 (/ offence (character-get-defence attack-target))))
                    (roll-dice 1 100)))
             (when attack-connected?

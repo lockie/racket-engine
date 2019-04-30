@@ -52,7 +52,7 @@
         (sprite-set-layer-toggled player-sprite 'greatbow #f)
         (sprite-set-layer-toggled player-sprite 'greatstaff #f)
         (sprite-set-layer-toggled player-sprite 'greatsword #f)
-        ;; (sprite-set-layer-toggled player-sprite 'leather-armor #f)
+        (sprite-set-layer-toggled player-sprite 'leather-armor #t)
         (sprite-set-layer-toggled player-sprite 'longbow #f)
         (sprite-set-layer-toggled player-sprite 'longsword #f)
         (sprite-set-layer-toggled player-sprite 'rod #f)
@@ -195,6 +195,15 @@
                      (set! popup (draw-text-popup sdl-renderer popup-text)))
                  (SDL_RenderCopy sdl-renderer popup #f #f)))))
 
+    (define (pickup-reward)
+        (sprite-set-layer-toggled player-sprite 'greatsword #t)
+        (sprite-set-layer-toggled player-sprite 'leather-armor #f)
+        (sprite-set-layer-toggled player-sprite 'steel-armor #t)
+        (character-set-speed player-character 120)
+        (character-set-defence player-character 2400)
+        (character-set-offence player-character 15)
+        (character-set-crit-chance player-character 10))
+
     (define (event e)
         (define (text-point text-object screen-x screen-y)
             (let ([object-x (+ (tiled-object-x text-object)
@@ -252,7 +261,13 @@
                                              player-character)])
                                   (and (< (abs (- char-x map-x)) 4)
                                        (< (abs (- char-y map-y)) 4))))
-                         (set! popup-text (tiled-object-text pointed-text))]
+                         (set! popup-text (tiled-object-text pointed-text))
+                         (when (string=?
+                                "true"
+                                (hash-ref
+                                 (tiled-object-properties pointed-text)
+                                 'reward ""))
+                             (pickup-reward))]
                         [else
                          (character-set-attack-target player-character #f)
                          (character-set-target-x player-character x)
