@@ -15,13 +15,15 @@
     ;; TODO : this arithmetic is correct for player, but slightly off for mobs
     (sprite-set-x
      sprite
-     (- (tiled-object-x tiled-object)
-        (tiled-map-renderer-get-tile-width map-renderer)))
+     (+ (tiled-map-renderer-get-tx map-renderer)
+        (- (tiled-object-x tiled-object)
+           (tiled-map-renderer-get-tile-width map-renderer))))
     (sprite-set-y
      sprite
-     (- (tiled-object-y tiled-object)
-        (* 2 (tiled-map-renderer-get-tile-height map-renderer))
-        (character-get-sprite-offset-y character)))
+     (+ (tiled-map-renderer-get-ty map-renderer)
+        (- (tiled-object-y tiled-object)
+           (* 2 (tiled-map-renderer-get-tile-height map-renderer))
+           (character-get-sprite-offset-y character))))
     (character-reset-target character))
 
 (define (make-example-game tiled-map map-renderer player-sprite player-character mob-sprites mob-characters mob-objects text-objects)
@@ -42,15 +44,8 @@
         (set! window-width (hash-ref config 'window-width 0))
         (set! window-height (hash-ref config 'window-height 0)))
 
-    (define (load renderer)
-        (set! font (TTF_OpenFont "assets/font.ttf" 18))
-        (TTF_SetFontHinting font TTF_HINTING_NONE)
-        (set! music (Mix_LoadMUS "assets/sounds/music.mp3"))
-        (Mix_VolumeMusic 32)
-        (set! orb-texture (IMG_LoadTexture renderer "assets/images/orb/orb.png"))
-        (set! orb-fill-texture (IMG_LoadTexture renderer "assets/images/orb/orb-fill.png"))
-        (set! orb-health-texture (IMG_LoadTexture renderer "assets/images/orb/orb-health.png"))
-        (SDL_SetTextureBlendMode orb-health-texture 'SDL_BLENDMODE_ADD)
+    (define (load-player)
+        (sprite-set-stance player-sprite 'idle)
         (sprite-set-layer-toggled player-sprite 'buckler #f)
         (sprite-set-layer-toggled player-sprite 'clothes #f)
         (sprite-set-layer-toggled player-sprite 'dagger #f)
@@ -67,6 +62,8 @@
         (sprite-set-layer-toggled player-sprite 'staff #f)
         (sprite-set-layer-toggled player-sprite 'steel-armor #f)
         (sprite-set-layer-toggled player-sprite 'wand #f)
+        (character-set-health!
+         player-character (character-get-max-health player-character))
         (let ([player-object
                (findf
                 (lambda (object)
@@ -75,7 +72,18 @@
                      (hash-ref (tiled-object-properties object) 'type "")))
                 (tiled-map-objects tiled-map))])
             (position-character
-             player-sprite player-character player-object map-renderer))
+             player-sprite player-character player-object map-renderer)))
+
+    (define (load renderer)
+        (set! font (TTF_OpenFont "assets/font.ttf" 18))
+        (TTF_SetFontHinting font TTF_HINTING_NONE)
+        (set! music (Mix_LoadMUS "assets/sounds/music.mp3"))
+        (Mix_VolumeMusic 32)
+        (set! orb-texture (IMG_LoadTexture renderer "assets/images/orb/orb.png"))
+        (set! orb-fill-texture (IMG_LoadTexture renderer "assets/images/orb/orb-fill.png"))
+        (set! orb-health-texture (IMG_LoadTexture renderer "assets/images/orb/orb-health.png"))
+        (SDL_SetTextureBlendMode orb-health-texture 'SDL_BLENDMODE_ADD)
+        (load-player)
         (for/list ([object mob-objects]
                    [mob-sprite mob-sprites]
                    [mob-character mob-characters])
@@ -83,6 +91,8 @@
              mob-sprite mob-character object map-renderer)))
 
     (define (close-text-popup)
+        (when (and popup-text (string=? popup-text "YOU DIED"))
+            (load-player))
         (when popup
             (SDL_DestroyTexture popup))
         (set! popup #f)
@@ -249,6 +259,8 @@
     (define (update dt)
         (when (zero? (Mix_PlayingMusic))
             (Mix_PlayMusic music -1))
+        (when (character-dead? player-character)
+            (set! popup-text "YOU DIED"))
         (define-values (x-diff y-diff) (character-center-map player-character))
         (for/list ([mob-sprite mob-sprites])
             (sprite-set-x
@@ -259,16 +271,17 @@
              mob-sprite
              (+ (sprite-get-y mob-sprite)
                 y-diff)))
-        (let-values ([(player-x player-y)
-                      (character-get-pos player-character)])
-            (for/list ([mob-character mob-characters])
-                (let-values ([(mob-x mob-y) (character-get-pos mob-character)])
-                    (unless (character-get-attack-target mob-character)
-                        (when (< (sqrt (+ (sqr (- mob-x player-x))
-                                          (sqr (* 0.5 (- mob-y player-y)))))
-                                 6)
-                            (character-set-attack-target
-                             mob-character player-character)))))))
+        (unless (character-dead? player-character)
+            (let-values ([(player-x player-y)
+                          (character-get-pos player-character)])
+                (for/list ([mob-character mob-characters])
+                    (let-values ([(mob-x mob-y) (character-get-pos mob-character)])
+                        (unless (character-get-attack-target mob-character)
+                            (when (< (sqrt (+ (sqr (- mob-x player-x))
+                                              (sqr (* 0.5 (- mob-y player-y)))))
+                                     6)
+                                (character-set-attack-target
+                                 mob-character player-character))))))))
 
 
     (define (quit)
@@ -289,7 +302,7 @@
     (define map-file "assets/map.tmx")
     (define tiled-map (parse-tiled-map map-file))
     (define tiled-map-renderer (make-tiled-map-renderer tiled-map))
-    (define player-sprite-path "/home/lock/Progs/GAMEDEV/Assets/heroine.ss")
+    (define player-sprite-path "assets/heroine.ss")
     (define player-sprite (make-sprite player-sprite-path #:player #t))
     (define player-character (make-character player-sprite tiled-map-renderer #:player #t))
     (tiled-map-renderer-set-player-sprite tiled-map-renderer player-sprite)
