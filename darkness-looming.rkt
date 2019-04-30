@@ -49,6 +49,7 @@
     (define orb-health-texture #f)
 
     (define (conf config)
+        (hash-set! config 'window-title "Darkness Looming")
         (set! window-width (hash-ref config 'window-width 0))
         (set! window-height (hash-ref config 'window-height 0)))
 
