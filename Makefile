@@ -7,7 +7,7 @@ darkness-looming: ${SOURCES}
 	raco exe --gui darkness-looming.rkt
 
 darkness-looming.tar.gz: darkness-looming
-	raco distribute DL darkness-looming; cp -r assets DL/bin; tar -czvf $@ DL
+	raco distribute DL darkness-looming; cp -r assets DL/bin; cp CREDITS.txt DL/bin; tar -czvf $@ DL
 
 clean:
 	rm -fr DL darkness-looming *.tar.gz
