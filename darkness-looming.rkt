@@ -239,7 +239,19 @@
                         [pointed-mob
                          (character-set-attack-target
                           player-character pointed-mob)]
-                        [pointed-text
+                        [(and pointed-text
+                              (let-values ([(map-x map-y)
+                                            (tiled-map-renderer-screen-to-map
+                                             map-renderer
+                                             (+ (tiled-object-x pointed-text)
+                                                (tiled-map-renderer-get-tx map-renderer))
+                                             (+ (tiled-object-y pointed-text)
+                                                (tiled-map-renderer-get-ty map-renderer)))]
+                                           [(char-x char-y)
+                                            (character-get-pos
+                                             player-character)])
+                                  (and (< (abs (- char-x map-x)) 4)
+                                       (< (abs (- char-y map-y)) 4))))
                          (set! popup-text (tiled-object-text pointed-text))]
                         [else
                          (character-set-attack-target player-character #f)
@@ -282,7 +294,6 @@
                                      6)
                                 (character-set-attack-target
                                  mob-character player-character))))))))
-
 
     (define (quit)
         (Mix_FreeMusic music)
