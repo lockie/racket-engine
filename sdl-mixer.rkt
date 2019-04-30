@@ -68,8 +68,6 @@
 
 (define-sdl-mixer Mix_OpenAudio (_fun _int _uint16 _int _int -> _int))
 
-(define-sdl-mixer Mix_OpenAudioDevice (_fun _int _uint16 _int _int _string _int -> _int))
-
 (define-sdl-mixer Mix_AllocateChannels (_fun _int -> _int))
 
 (define-sdl-mixer Mix_QuerySpec (_fun _int* _uint16* _int* -> _int))
@@ -93,7 +91,6 @@
 
 (define-sdl-mixer Mix_GetNumChunkDecoders (_fun -> _int))
 (define-sdl-mixer Mix_GetChunkDecoder (_fun _int -> _string))
-(define-sdl-mixer Mix_HasChunkDecoder (_fun _string -> _SDL_bool))
 (define-sdl-mixer Mix_GetNumMusicDecoders (_fun -> _int))
 (define-sdl-mixer Mix_GetMusicDecoder (_fun _int -> _string))
 ;; see https://discourse.libsdl.org/t/missing-mix-hasmusicdecoder-definition/23392

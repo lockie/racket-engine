@@ -26,6 +26,3 @@
 (define-sdl-image IMG_LoadTexture (_fun _SDL_Renderer _string -> _SDL_Texture))
 
 (define-sdl-image IMG_SavePNG (_fun _SDL_Surface _string -> _int))
-
-(define-sdl-image IMG_SaveJPG (_fun _SDL_Surface _string _int -> _int))
-

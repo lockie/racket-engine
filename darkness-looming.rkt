@@ -347,6 +347,7 @@ EOT
         (when (zero? (Mix_PlayingMusic))
             (Mix_PlayMusic music -1))
         (when (character-dead? player-character)
+            (set! talked-with-npc #f)
             (set! popup-text "YOU DIED"))
         (define-values (x-diff y-diff) (character-center-map player-character))
         (sprite-set-x npc-sprite (+ (sprite-get-x npc-sprite) x-diff))
