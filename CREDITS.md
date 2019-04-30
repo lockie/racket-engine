@@ -9,6 +9,10 @@ HERO SPRITES
 Clint Bellanger
 opengameart.org/content/isometric-hero-and-heroine
 
+ZOMBIE SPRITES
+Clint Bellanger
+opengameart.org/content/zombie-sprites
+
 MINOTAUR SPRITES
 Clint Bellanger
 opengameart.org/content/minotaur
@@ -32,6 +36,10 @@ opengameart.org/content/death-is-looming
 FEMALE HERO SOUNDS
 Simone Bruhn
 opengameart.org/content/female-gruntwork-1
+
+ZOMBIE SOUNDS
+artisticdude
+opengameart.org/content/zombies-sound-pack
 
 MINOTAUR SOUNDS
 Brandon Morris
