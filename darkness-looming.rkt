@@ -4,6 +4,7 @@
 
 (require
  racket/bool
+ racket/file
  racket/function
  racket/list
  racket/math
@@ -26,12 +27,19 @@
            (character-get-sprite-offset-y character))))
     (character-reset-target character))
 
-(define (make-example-game tiled-map map-renderer player-sprite player-character mob-sprites mob-characters mob-objects text-objects)
+(define (make-example-game
+         tiled-map map-renderer
+         player-sprite player-character
+         mob-sprites mob-characters mob-objects
+         text-objects
+         npc-object npc-sprite npc-character)
     (define window-width 0)
     (define window-height 0)
 
     (define font #f)
     (define music #f)
+    (define win-music #f)
+    (define pot-sound #f)
 
     (define popup-text #f)
     (define popup #f)
@@ -78,12 +86,15 @@
         (set! font (TTF_OpenFont "assets/font.ttf" 18))
         (TTF_SetFontHinting font TTF_HINTING_NONE)
         (set! music (Mix_LoadMUS "assets/sounds/music.mp3"))
+        (set! win-music (Mix_LoadMUS "assets/sounds/Victory1.mp3"))
+        (set! pot-sound (Mix_LoadWAV "assets/sounds/metalPot1.ogg"))
         (Mix_VolumeMusic 32)
         (set! orb-texture (IMG_LoadTexture renderer "assets/images/orb/orb.png"))
         (set! orb-fill-texture (IMG_LoadTexture renderer "assets/images/orb/orb-fill.png"))
         (set! orb-health-texture (IMG_LoadTexture renderer "assets/images/orb/orb-health.png"))
         (SDL_SetTextureBlendMode orb-health-texture 'SDL_BLENDMODE_ADD)
         (load-player)
+        (position-character npc-sprite npc-character npc-object map-renderer)
         (for/list ([object mob-objects]
                    [mob-sprite mob-sprites]
                    [mob-character mob-characters])
@@ -204,6 +215,39 @@
         (character-set-offence player-character 15)
         (character-set-crit-chance player-character 10))
 
+    (define talked-with-npc #f)
+
+    (define intro-text #<<EOT
+You see some old monk near the road. You hail him.
+- May your days be light, monk.
+- May your days be light, soldier. What brings you to this forsaken land?
+- I'm heading home.
+- I've heard the news we've won the war with The Dark One. Unfortunately,
+his spawn still inhabit the land. You won't be able to travel further inland.
+The foul beast lurks in the forest, destroying everything that is light.
+- I'll kill it.
+- Many have tried, and many have failed. You may stand a chance before him
+with the legendary combat equipment. It is hidden in the old graveyard,
+which is infested with zombies. If the need arises, I can share some food
+with you so you can regain your strength.
+- Thanks for the heads up.
+- May your days be light.
+EOT
+        )
+
+    (define (npc-interact)
+        (if talked-with-npc
+            (set! popup-text "- May your days be light, soldier.")
+            (begin
+                (set! popup-text intro-text)
+                (set! talked-with-npc #t)))
+        (when (< (character-get-health player-character)
+                 (character-get-max-health player-character))
+            (Mix_PlayChannel -1 pot-sound 0)
+            (character-set-health!
+             player-character
+             (character-get-max-health player-character))))
+
     (define (event e)
         (define (text-point text-object screen-x screen-y)
             (let ([object-x (+ (tiled-object-x text-object)
@@ -239,12 +283,16 @@
                                (lambda (text-object)
                                    (text-point text-object screen-x screen-y))
                                text-objects)]
+                             [(pointed-npc)
+                              (mob-point npc-character screen-x screen-y)]
                              [(pointed-mob)
                               (findf
                                (lambda (mob-character)
                                    (mob-point mob-character screen-x screen-y))
                                mob-characters)])
                     (cond
+                        [pointed-npc
+                         (npc-interact)]
                         [pointed-mob
                          (character-set-attack-target
                           player-character pointed-mob)]
@@ -284,11 +332,24 @@
              (close-text-popup)]))
 
     (define (update dt)
+        (for/list ([mob-object mob-objects]
+                   [mob-char mob-characters])
+            (when (and
+                   (string=?
+                    (hash-ref (tiled-object-properties mob-object) 'boss "")
+                    "true")
+                   (character-dead? mob-char))
+                (when (not popup-text)
+                    (Mix_PlayMusic win-music -1))
+                (set! popup-text
+                    (string-trim (file->string "CREDITS.txt" #:mode 'text)))))
         (when (zero? (Mix_PlayingMusic))
             (Mix_PlayMusic music -1))
         (when (character-dead? player-character)
             (set! popup-text "YOU DIED"))
         (define-values (x-diff y-diff) (character-center-map player-character))
+        (sprite-set-x npc-sprite (+ (sprite-get-x npc-sprite) x-diff))
+        (sprite-set-y npc-sprite (+ (sprite-get-y npc-sprite) y-diff))
         (for/list ([mob-sprite mob-sprites])
             (sprite-set-x
              mob-sprite
@@ -367,7 +428,27 @@
             (character-set-health! char (get-prop 'health "100"))
             (character-set-max-health char (get-prop 'max-health "100"))
             char))
-    (define game (make-example-game tiled-map tiled-map-renderer player-sprite player-character mob-sprites mob-characters mob-objects text-objects))
+    (define npc-object
+        (findf
+         (lambda (object)
+             (string=?
+              "npc"
+              (hash-ref (tiled-object-properties object) 'type "")))
+         (tiled-map-objects tiled-map)))
+    (define npc-sprite
+        (make-sprite
+         (build-path
+          (path-only (tiled-map-file-path tiled-map))
+          (hash-ref (tiled-object-properties npc-object) 'sprite))))
+    (define npc-character
+        (make-character npc-sprite tiled-map-renderer))
+    (define game
+        (make-example-game
+         tiled-map tiled-map-renderer
+         player-sprite player-character
+         mob-sprites mob-characters mob-objects
+         text-objects
+         npc-object npc-sprite npc-character))
     (thread
      (lambda ()
          (game-thread
@@ -378,7 +459,7 @@
             player-character)
            mob-sprites
            mob-characters
-           (list game))))))
+           (list npc-sprite npc-character game))))))
 
 
 (thread-wait (run-game))
