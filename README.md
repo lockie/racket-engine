@@ -30,6 +30,7 @@ To run the game in the unpacked archive directory:
 cd DL/bin
 ./darkness-looming
 ```
+If there's no sound, try running `export SDL_AUDIODRIVER=alsa` first.
 
 ## Other Linuces
 Use the provided binaries archive in [releases section](https://github.com/lockie/racket-engine/releases).
@@ -39,6 +40,7 @@ To run the game in the unpacked archive directory:
 cd DL/bin
 ./darkness-looming
 ```
+If there's no sound, try running `export SDL_AUDIODRIVER=alsa` first.
 
 ## From source
 To run the game from source:
