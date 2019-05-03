@@ -5,7 +5,7 @@
 [![Downloads](https://img.shields.io/github/downloads/lockie/racket-engine/total.svg)](https://github.com/lockie/racket-engine/releases)
 [![License](https://img.shields.io/github/license/lockie/racket-engine.svg)](LICENSE)
 
-A simple SDL2-based game engine in Racket language, loosely inspired by LÖVE framework.
+A simple SDL2-based game engine in [Racket language](https://racket-lang.org), loosely inspired by [LÖVE framework](https://love2d.org).
 Used to create [Itch.io Lisp Game Jam 2019](https://itch.io/jam/lisp-game-jam-2019) entry called [Darkness Looming](https://awkravchuk.itch.io/darkness-looming).
 
 ![Screenshot](https://img.itch.zone/aW1nLzIwNjM3MTMucG5n/original/ShqNYz.png)
@@ -42,7 +42,7 @@ cd DL/bin
 
 ## From source
 To run the game from source:
-1. you'll need working Racket 7.0+ installation.
+1. you'll need working [Racket](https://download.racket-lang.org) 7.0+ installation.
 2. Install necessary packages: `raco pkg install csv-reading sxml sdl`
 3. If you're using git, don't forget to pull all the assets from Git LFS: `git lfs fetch`
 4. run `racket darkness-looming.rkt`
