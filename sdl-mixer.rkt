@@ -72,7 +72,7 @@
 
 (define-sdl-mixer Mix_QuerySpec (_fun _int* _uint16* _int* -> _int))
 
-(define-sdl-mixer Mix_LoadWAV_RW (_fun _pointer _int -> _Mix_Chunk*))
+(define-sdl-mixer Mix_LoadWAV_RW (_fun _pointer _int -> _Mix_Chunk*/null))
 (define (Mix_LoadWAV file) (Mix_LoadWAV_RW (SDL_RWFromFile file "rb") 1))
 
 (define-sdl-mixer Mix_LoadMUS (_fun _string -> _Mix_Music*))

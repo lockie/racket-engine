@@ -64,6 +64,7 @@
     (SDL_SetMainReady)
     (SDL_Init (bitwise-ior SDL_INIT_VIDEO SDL_INIT_AUDIO))
     (IMG_Init 'IMG_INIT_PNG)
+    (Mix_Init '(MIX_INIT_OGG MIX_INIT_MP3))
     (TTF_Init)
     (Mix_OpenAudio 44100 MIX_DEFAULT_FORMAT MIX_DEFAULT_CHANNELS 4096)
 
